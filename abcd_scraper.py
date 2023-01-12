@@ -106,11 +106,11 @@ def find_url(links, url):
 if __name__ == "__main__":
 
   # Initialize the argument parser
-  #argparser = argparse.ArgumentParser()
-  #argparser.add_argument('-o', '--output', help='output file', dest='output', type=str, required=True)
+  argparser = argparse.ArgumentParser()
+  argparser.add_argument('-o', '--output', help='output file', dest='output', type=str, required=True)
 
   # Parse arguments
-  #args = argparser.parse_args()
+  args = argparser.parse_args()
 
   #pubmed = "https://www.ncbi.nlm.nih.gov/"
 
