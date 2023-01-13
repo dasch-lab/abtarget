@@ -8,7 +8,8 @@ import sys
 import random
 import numpy as np
 from protbert import Baseline
-from baselineDataset import MabMultiStrainBinding
+from src.baseline_dataset import MabMultiStrainBinding
+
 
 from sklearn.model_selection import train_test_split
 

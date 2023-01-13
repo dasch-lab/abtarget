@@ -39,7 +39,7 @@ if __name__ == "__main__":
   non_protein = read_files('/disk1/abtarget/mAb_dataset/NR_LH_NonProtein_Kabat')
   print('Non Protein: {}'.format(len(non_protein)))
   
-  details = [['name', 'VH', 'VL', 'target']]
+  details = [['name', 'VH', 'VL', 'target', 'label']]
 
   print('Start writing')
   with open('/disk1/abtarget/mAb_dataset/dataset.csv', 'w') as f:

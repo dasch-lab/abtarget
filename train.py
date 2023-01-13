@@ -1,85 +1,256 @@
-from pandas import *
-import traceback
-import re
+import os
+import time
+import copy
+import random
+import argparse
+import math
+from collections import defaultdict
+
+import pandas as pd
 import torch
-import numpy as np
-from sklearn.model_selection import train_test_split
-from antiberty import AntiBERTy, get_weights
+from torch.utils.data import random_split
+from src.metrics import MCC
+from src.protbert import Baseline
+from src.baseline_dataset import MabMultiStrainBinding, CovAbDabDataset
 
-from transformers import BertModel, BertTokenizer
+def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, proportion=None):
 
-from transformers import (
-    RobertaTokenizer,
-    RobertaForTokenClassification,
-    Trainer,
-    TrainingArguments
-)
+  '''
+  Split the dataset proportionally according to the sample label
+  '''
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+  # Get classes
+  classList = list(set(labels))
+  resultList = {
+    'test': [],
+    'train': []
+  }
 
-def csv_2_list(csv_name):
-    data = read_csv(csv_name)
-    filename = data['File_name'].tolist()
-    vh = data['VH'].tolist()
-    vl = data['VL'].tolist()
-    target = data['target'].tolist()
-    return filename, vh, vl, target
+  classData = {}
+  for name in classList:
 
-def protbert_embedding(sequences):
+    # Get subsample of indexes for this class
+    classData[name] = [ idx for idx, label in enumerate(labels) if label == name ]
 
-    # 1. Load the vocabulary and ProtBert Model
-    tokenizer = BertTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False )
-    model = BertModel.from_pretrained("Rostlab/prot_bert")
+  # Get shorter element
+  shorter_class = min(classData.items(), key=lambda x: len(x[1]))[0]
+  if proportion:
+    subset_size = len(classData[shorter_class])
+    for name in classList:
+      if name == shorter_class:
+        continue
 
-    # 2. Load the model into the GPU if avilabile and switch to inference mode
-    model = model.to(device)
-    model = model.eval()
+      classData[name] = random.sample(classData[name], subset_size)
 
-    # 3. Create or load sequences and map rarely occured amino acids (U,Z,O,B) to (X)
-    pre_sequence = [re.sub(r"[UZOB-]", "X", sequence) for sequence in sequences]
+  classStats = {
+    'train': {},
+    'test': {}
+  }
+  for name in classList:
+    train_size = round(len(classData[name]) * fraction)
+    trainList = random.sample(classData[name], train_size)
+    testList = [ idx for idx in classData[name] if idx not in trainList ]
 
-    # 4. Tokenize, encode sequences and load it into the GPU if possibile
-    ids = tokenizer.batch_encode_plus(pre_sequence, add_special_tokens=True, pad_to_max_length=True)
-    input_ids = torch.tensor(ids['input_ids']).to(device)
-    attention_mask = torch.tensor(ids['attention_mask']).to(device)
+    # Update stats
+    classStats['train'][name] = len(trainList)
+    classStats['test'][name] = len(testList)
 
-    # 5. Extracting sequences' features and load it into the CPU if needed
-    with torch.no_grad():
-        embedding = model(input_ids=input_ids,attention_mask=attention_mask)[0]
-    embedding = embedding.cpu().numpy()
+    # Concatenate indexes
+    resultList['train'].extend(trainList)
+    resultList['test'].extend(testList)
 
-    # 6. Remove padding ([PAD]) and special tokens ([CLS],[SEP]) that is added by Bert model
-    features = [] 
-    for seq_num in range(len(embedding)):
-        seq_len = (attention_mask[seq_num] == 1).sum()
-        seq_emd = embedding[seq_num][1:seq_len-1]
-        features.append(seq_emd)
-    
-    return features
+  # Shuffle index lists
+  for key in resultList:
+    random.shuffle(resultList[key])
+    print('{0} dataset:'.format(key))
+    for name in classList:
+      print(' Class {0}: {1}'.format(name, classStats[key][name]))
+  
+  # Construct the test and train datasets
+  train_data = torch.utils.data.Subset(dataset, resultList['train'])
+  test_data = torch.utils.data.Subset(dataset, resultList['test'])
+
+  return train_data, test_data
+
+def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=1, save_folder=None, batch_size=8, device='cpu'):
+  since = time.time()
+  best_model_wts = copy.deepcopy(model.state_dict())
+  best_acc = 0.0
+
+  for epoch in range(num_epochs):
+    print(f"Epoch {epoch+1}/{num_epochs}")
+    print("#" * 10)
+
+    # Epoch train and validation phase
+    for phase in ["train", "test"]:
+      print("## " + f"{phase}".capitalize())
+      if phase == "train":
+        model.train()
+      else:
+        model.eval()
+
+      # Iterate over the Data
+      running_loss = 0.0
+      running_correct = 0
+      dataset_size = len(dataloaders[phase].dataset)
+      size = len(dataloaders[phase])
+      mcc_score = MCC()
+      for count, inputs in enumerate(dataloaders[phase]):
+
+        labels = inputs['label'].to(device)
+        optimizer.zero_grad()
+        with torch.set_grad_enabled(phase == "train"):
+          outputs = model(inputs)
+          _, preds = torch.max(outputs, 1)
+          print(outputs)
+          loss = criterion(outputs, labels)
+          if phase == "train":
+            loss.backward()
+            optimizer.step()
+
+        # Stats
+        current_loss = loss.item()
+        running_loss += current_loss * len(inputs['target'])
+        running_correct += torch.sum(preds == labels)
+        if phase == "train":
+          scheduler.step()
+
+        epoch_loss = running_loss / dataset_size
+        epoch_acc = running_correct.double() / dataset_size
+        mcc = mcc_score.update(preds, labels)
+        isPrint = True if count % 10 == 0 or count == size-1 else False
+        if isPrint:
+          print('{phase} {count}/{total} Loss: {loss:.4f} Running Loss: {running_loss:.4f} Acc: {acc:.4f} MCC: {mcc:.4f}'.format(
+            total=size,
+            count=count,
+            phase=phase,
+            running_loss=epoch_loss,
+            loss=current_loss,
+            acc=epoch_acc,
+            mcc=mcc
+          ))
+
+        # Deep copy the model & save checkpoint to file
+        if phase == "test" and epoch_acc > best_acc:
+          best_acc = epoch_acc
+          best_model_wts = copy.deepcopy(model.state_dict())
+
+          save_path = os.path.join(save_folder, 'checkpoints')
+          if not os.path.exists(save_path):
+            os.mkdir(save_path)
+
+          # Store checkpoint
+          checkpoint_path = os.path.join(save_path, 'epoch-{0}'.format(epoch+1))
+          torch.save({
+            "epoch": epoch,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "loss": loss,
+            "batch_size": batch_size,
+          }, checkpoint_path)
+
+  time_elapsed = time.time() - since
+  print('Training complete in {h}:{m}:{s}'.format(
+    h=int(time_elapsed // 3600),
+    m=int(time_elapsed // 60),
+    s=int(time_elapsed % 60)
+  ))
+  print("Best test Acc: {0}".format(best_acc))
+
+  # Load best model weights
+  model.load_state_dict(best_model_wts)
+
+  return model
 
 if __name__ == "__main__":
-    filename, vh, vl, target = csv_2_list("/disk1/abtarget/mAb_dataset/dataset.csv")
-    binary_class = [0]*(len(target)-1)
-    n = target.count('Protein')
-    binary_class[0:n] = [1]*n
-    binary_class.append([0]*(len(target)-len(binary_class)))
-    sequences = [list(el) for el in zip(vh, vl)]
 
-    x_train, x_test, y_train, y_test = train_test_split(sequences, binary_class)
+  # Initialize the argument parser
+  argparser = argparse.ArgumentParser('Baseline for Abtarget classification', add_help=False) #, fromfile_prefix_chars="@")
+  argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
+  argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
+  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=15)
+  argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=8)
+  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
+  argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
+  argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
+  
+  # Parse arguments
+  args = argparser.parse_args()
+  
+  # Set random seed for reproducibility
+  if args.random:
+    random.seed(args.random)
+  
+  # Create the dataset object
+  #dataset = MabMultiStrainBinding(os.path.join(args.input))
+  dataset = CovAbDabDataset(os.path.join(args.input, "abdb_dataset.csv"))
+  
 
+  if args.threads:
+    torch.set_num_threads(args.threads)
+
+  # Train test split 
+  nn_train = 0.8
+  train_data, test_data = stratified_split(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
+
+  # Save Dataset or Dataloader for later evaluation
+  save_dataset = True
+  if save_dataset:
+    save_path = os.path.join(args.input, 'checkpoints')
+    if not os.path.exists(save_path):
+      os.mkdir(save_path)
+
+    # Store datasets
+    torch.save(train_data, os.path.join(save_path, 'train_data.pt'))
+    torch.save(test_data, os.path.join(save_path, 'test_data.pt'))
     
+  # Train and Test Dataloaders - (Wrap data with appropriate data loaders)
+  train_loader = torch.utils.data.DataLoader(
+    train_data, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True
+  )
+  val_loader = torch.utils.data.DataLoader(
+    test_data, batch_size=args.batch_size, num_workers=4, pin_memory=True
+  )
 
-    #if name == 'protbert':
-    #    vh_features = protbert_embedding(vh)
-    #    vl_features = protbert_embedding(vl)
-    #elif name == 'antiberta':
-    #    # 1. initialize tokenizer
-    #    TOKENIZER_DIR = "antibody-tokenizer"
-    #    tokenizer = RobertaTokenizer.from_pretrained(TOKENIZER_DIR, max_len=150)
-    #
-    #    MODEL_DIR = "antiberta-base"# We initialise a model using the weights from the pre-trained model
-    #    model = RobertaForTokenClassification.from_pretrained(MODEL_DIR, num_labels=2)
-    #    tokenized_input = tokenizer(vl, return_tensors='pt', padding=True)
-    #    predicted_logits = model(**tokenized_input)
-    #else:
-    #    pass
+  # Set the device
+  device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+  print('Using device {0}'.format(device))
+
+  # Train script
+  dataloaders = {
+    "train": train_loader, 
+    "test": val_loader
+  }
+
+  # Select model
+  model = None
+  model_name = args.model.lower()
+  if model_name == 'protbert':
+    hidden_size = 256
+    output_size = 1
+    model = Baseline(nn_classes=args.n_class, freeze_bert=True) 
+
+  if model == None:
+    raise Exception('Unable to initialize model \'{model}\''.format(model_name))
+
+  # Define criterion, optimizer and lr scheduler
+  criterion = torch.nn.CrossEntropyLoss().to(device) #TODO
+  # criterion = torch.nn.BCELoss().to(device)
+  # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+  optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+  exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
+
+  # Train model
+  train_model(
+    model,
+    dataloaders,
+    criterion,
+    optimizer,
+    exp_lr_scheduler,
+    num_epochs=args.epoch_number,
+    save_folder=args.input,
+    batch_size=args.batch_size,
+    device=device
+  )
+
+  print("\n ## Training DONE ")

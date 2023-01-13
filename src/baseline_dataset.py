@@ -10,6 +10,18 @@ import torch
 import pandas as pd
 from sklearn import preprocessing
 
+import os
+import time
+import copy
+import random
+import argparse
+import math
+from collections import defaultdict
+
+import pandas as pd
+import torch
+from torch.utils.data import random_split
+
 
 class MabDataset(torch.utils.data.Dataset):
     def __init__(self, path):
@@ -162,12 +174,122 @@ class MabMultiStrainBinding(torch.utils.data.Dataset):
         xxx = [" ".join(list(_)) for _ in xxx]
         return xxx, label
 
+import os
+import pandas as pd
 
-if __name__ == "__main__":
+from torch.utils.data import Dataset
+# from src import configs
+from src import fasta
 
-    dataset = MabMultiStrainBinding(
-        Path("/disk1/abtarget/mAb_dataset/dataset.csv"), None
-    )
+
+class CovAbDabDataset(Dataset):
+    def __init__(self, path, target=None, alignment=None):
+
+        self._path = path
+
+        # Load the input csv
+        self._data = pd.read_csv(self._path, sep=",")
+        self._len = len(self._data.index)
+
+        # Extract the labels (binarization)
+        lb = preprocessing.LabelBinarizer()
+        self._labels = [el[0] for el in lb.fit_transform(self._data["target"].tolist())]
+        print(self._labels)
+
+    def __len__(self):
+        return self._len
+
+    @property
+    def labels(self):
+        return self._labels
+
+    def __getitem__(self, idx):
+
+        row = self._data.iloc[idx]
+        return {
+            "VH": row["VH"],
+            "VL": row["VL"],
+            #"target": self._align[row["organism"]],
+            "label": row["target"],
+        }
+
+    """
+     @staticmethod
+    def parseAlignment(name=None):
+
+        # This function loads the alignment file, extract the annotation and masks unwanted residues
+
+        # Get paths from config
+        align_path = os.path.join(
+            configs.get("root", ""), configs.get("alignment", None)
+        )
+        bed_path = os.path.join(
+            configs.get("root", ""), configs.get("annotation", None)
+        )
+        if not os.path.exists(align_path) or not os.path.exists(bed_path):
+            raise Exception("Unable to find alignment or annotation file")
+
+        # Parse alignment fasta
+        # The fasta header is composed by <name>;<accession>
+        result = {}
+        for (name, sequence) in fasta.parse(align_path):
+            name = name.split(";")[0]
+            result[name] = sequence
+
+        # Parse bed file
+        # The bed file needs to have the first 4 columns:
+        # chr|start|end|name
+        annotation = {}
+        with open(bed_path, "r") as handle:
+            for line in handle:
+                line = line.strip().split()
+                if len(line) < 4:
+                    raise Exception("Invalid bed file format")
+
+                name = line[3]
+                annotation[name] = {"start": int(line[1]), "end": int(line[2])}
+
+        # Do we need to extract the sequence?
+        if not name:
+            return result
+
+        # Extract only part of the sequence
+        fragment = annotation[name] if name in annotation else None
+        if not fragment:
+            raise Exception("Invalid annotation name: '{0}'".format(name))
+
+        # Apply annotation
+        for key in result:
+            value = result[key][fragment["start"] : fragment["end"]]
+            result[key] = value
+
+        # Do we need to mask?
+        mask = configs.get("mask", [])
+        if len(mask) == 0:
+            return result
+
+        # Mask unwanted residues
+        for key in result:
+            value = "".join([result[key][i] for i in mask])
+            result[key] = value
+
+        return result 
+        
+    """
+
+
+"""
+# generate the dataset.txt in the <./test> folder for the training
+python dataset.py -i ./data/covabdab_260722.csv -o ./test
+
+"""
+
+
+#if __name__ == "__main__":
+#
+#    dataset = MabMultiStrainBinding(
+#        Path("/disk1/abtarget/mAb_dataset/dataset.csv"), None
+#    )
 #     print("# Dataset created")
 
 
