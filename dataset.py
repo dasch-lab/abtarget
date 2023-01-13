@@ -10,7 +10,7 @@ import csv
 
 from src import pdb as pdbParse
 
-def read_files(path):
+def read_files(path, n_class):
   
   res = []
   target = path.split('/')[-1].split('_')[2]
@@ -18,7 +18,7 @@ def read_files(path):
     pdb_path = os.path.join(path, filename)
     sequence_h = pdbParse.sequence(pdb_path, 'H', False)
     sequence_l = pdbParse.sequence(pdb_path, 'L', False)
-    res.append([filename, sequence_h, sequence_l, target])
+    res.append([filename, sequence_h, sequence_l, target, n_class])
   
   return res
 
@@ -34,15 +34,15 @@ if __name__ == "__main__":
   #input_path = '/disk1/mAb_dataset/LH_Protein_Kabat'
 
   print('Start')
-  protein = read_files('/disk1/abtarget/mAb_dataset/NR_LH_Protein_Kabat')
+  protein = read_files('/disk1/abtarget/dataset/NR_LH_Protein_Kabat', 0)
   print('Protein: {}'.format(len(protein)))
-  non_protein = read_files('/disk1/abtarget/mAb_dataset/NR_LH_NonProtein_Kabat')
+  non_protein = read_files('/disk1/abtarget/dataset/NR_LH_NonProtein_Kabat', 1)
   print('Non Protein: {}'.format(len(non_protein)))
   
   details = [['name', 'VH', 'VL', 'target', 'label']]
 
   print('Start writing')
-  with open('/disk1/abtarget/mAb_dataset/dataset.csv', 'w') as f:
+  with open('/disk1/abtarget/dataset/abdb_dataset.csv', 'w') as f:
     mywriter = csv.writer(f, delimiter=',')
     mywriter.writerows(details)
     mywriter.writerows(protein)

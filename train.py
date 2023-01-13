@@ -110,7 +110,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
 
         # Stats
         current_loss = loss.item()
-        running_loss += current_loss * len(inputs['target'])
+        running_loss += current_loss * len(inputs['label'])
         running_correct += torch.sum(preds == labels)
         if phase == "train":
           scheduler.step()
@@ -167,6 +167,7 @@ if __name__ == "__main__":
   # Initialize the argument parser
   argparser = argparse.ArgumentParser('Baseline for Abtarget classification', add_help=False) #, fromfile_prefix_chars="@")
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
+  argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
   argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=15)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=8)
@@ -196,7 +197,7 @@ if __name__ == "__main__":
   # Save Dataset or Dataloader for later evaluation
   save_dataset = True
   if save_dataset:
-    save_path = os.path.join(args.input, 'checkpoints')
+    save_path = os.path.join(args.checkpoint, 'checkpoints')
     if not os.path.exists(save_path):
       os.mkdir(save_path)
 

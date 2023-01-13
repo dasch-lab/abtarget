@@ -191,9 +191,8 @@ class CovAbDabDataset(Dataset):
         self._data = pd.read_csv(self._path, sep=",")
         self._len = len(self._data.index)
 
-        # Extract the labels (binarization)
-        lb = preprocessing.LabelBinarizer()
-        self._labels = [el[0] for el in lb.fit_transform(self._data["target"].tolist())]
+        # Extract the labels
+        self._labels = self._data["label"]
         print(self._labels)
 
     def __len__(self):
@@ -210,7 +209,7 @@ class CovAbDabDataset(Dataset):
             "VH": row["VH"],
             "VL": row["VL"],
             #"target": self._align[row["organism"]],
-            "label": row["target"],
+            "label": row["label"],
         }
 
     """

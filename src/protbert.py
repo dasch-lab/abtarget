@@ -112,8 +112,8 @@ class Baseline(nn.Module):
     # TODO fix the sequence loading into the tokenizer
     def forward(self, x):
 
-        vh = x[0]
-        vl = x[1]
+        vh = x['VH']
+        vl = x['VL']
         xvh = self.bert_encoder(vh)
         xvl = self.bert_encoder(vl)
         x = torch.cat((xvh, xvl), 1)
