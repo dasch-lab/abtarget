@@ -40,3 +40,6 @@ test_output/
 *.mo
 
 *.DS_Store
+
+# Ignore subfolders inside dataset folder
+dataset/*/

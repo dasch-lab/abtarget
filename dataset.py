@@ -16,8 +16,8 @@ def read_files(path):
   target = path.split('/')[-1].split('_')[2]
   for filename in os.listdir(path):
     pdb_path = os.path.join(path, filename)
-    sequence_h = pdbParse.sequence(pdb_path, 'H', True)
-    sequence_l = pdbParse.sequence(pdb_path, 'L', True)
+    sequence_h = pdbParse.sequence(pdb_path, 'H', False)
+    sequence_l = pdbParse.sequence(pdb_path, 'L', False)
     res.append([filename, sequence_h, sequence_l, target])
   
   return res
@@ -39,7 +39,7 @@ if __name__ == "__main__":
   non_protein = read_files('/disk1/abtarget/mAb_dataset/NR_LH_NonProtein_Kabat')
   print('Non Protein: {}'.format(len(non_protein)))
   
-  details = [['File_name', 'VH', 'VL', 'target']]
+  details = [['name', 'VH', 'VL', 'target']]
 
   print('Start writing')
   with open('/disk1/abtarget/mAb_dataset/dataset.csv', 'w') as f:
