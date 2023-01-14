@@ -229,7 +229,8 @@ if __name__ == "__main__":
   if model_name == 'protbert':
     hidden_size = 256
     output_size = 1
-    model = Baseline(nn_classes=args.n_class, freeze_bert=True) 
+    #model = Baseline(nn_classes=args.n_class, freeze_bert=True) 
+    model = Baseline(nn_classes=args.n_class, freeze_bert=False) 
 
   if model == None:
     raise Exception('Unable to initialize model \'{model}\''.format(model_name))

@@ -1,0 +1,27 @@
+Some weights of the model checkpoint at Rostlab/prot_bert_bfd were not used when initializing BertModel: ['cls.seq_relationship.weight', 'bert.pooler.dense.bias', 'cls.predictions.transform.LayerNorm.bias', 'cls.seq_relationship.bias', 'cls.predictions.decoder.bias', 'cls.predictions.transform.dense.bias', 'cls.predictions.bias', 'cls.predictions.transform.dense.weight', 'cls.predictions.transform.LayerNorm.weight', 'bert.pooler.dense.weight', 'cls.predictions.decoder.weight']
+- This IS expected if you are initializing BertModel from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertModel from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Using device cuda:0
+0       0
+1       0
+2       0
+3       0
+4       0
+       ..
+1466    1
+1467    1
+1468    1
+1469    1
+1470    1
+Name: label, Length: 1471, dtype: int64
+test dataset:
+ Class 0: 52
+ Class 1: 52
+train dataset:
+ Class 0: 208
+ Class 1: 208
+Using device cuda:0
+Classification_dim: 512
+Epoch 1/100
+##########
+## Train
