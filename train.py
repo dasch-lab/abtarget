@@ -169,7 +169,7 @@ if __name__ == "__main__":
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
-  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=15)
+  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=100)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=8)
   argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
