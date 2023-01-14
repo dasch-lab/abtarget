@@ -65,14 +65,14 @@ class Baseline(nn.Module):
         self.freeze_bert = freeze_bert
 
         # Projection for the concatenated embeddings
-        if False:
+        if True:
             projection = nn.Sequential(
                 nn.Linear(bert_emb_size * 2, bert_emb_size),
                 nn.ReLU(),
                 nn.Linear(bert_emb_size, bert_emb_size // 2),
                 nn.ReLU(),
             )
-        if True:
+        if False:
             # New normalization, new activation
             # nn.LeakyReLU()
             projection = nn.Sequential(
@@ -125,9 +125,9 @@ class Baseline(nn.Module):
 
 
 # Check model parameter freezing
-baseline = Baseline(nn_classes=2, freeze_bert=False)
+# baseline = Baseline(nn_classes=2, freeze_bert=False)
 # list(baseline.children())
-print(sum([param.nelement() for param in baseline.parameters() if param.requires_grad]))
-for name, param in baseline.named_parameters():
-    if param.requires_grad:
-        print('## ', name, param.requires_grad)
+# print(sum([param.nelement() for param in baseline.parameters() if param.requires_grad]))
+#for name, param in baseline.named_parameters():
+#    if param.requires_grad:
+#        print('## ', name, param.requires_grad)
