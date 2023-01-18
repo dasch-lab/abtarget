@@ -102,8 +102,8 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
         with torch.set_grad_enabled(phase == "train"):
           outputs = model(inputs)
           _, preds = torch.max(outputs, 1)
-          print(outputs)
-          loss = criterion(outputs, labels)
+          print(torch.squeeze(outputs))
+          loss = criterion(torch.squeeze(outputs), labels)
           if phase == "train":
             loss.backward()
             optimizer.step()
@@ -173,7 +173,7 @@ if __name__ == "__main__":
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=8)
   argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
-  argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
+  argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=1)
   
   # Parse arguments
   args = argparser.parse_args()
@@ -185,6 +185,7 @@ if __name__ == "__main__":
   # Create the dataset object
   #dataset = MabMultiStrainBinding(os.path.join(args.input))
   dataset = CovAbDabDataset(os.path.join(args.input, "abdb_dataset.csv"))
+  #labels_prova = torch.from_numpy(dataset.labels.numpy().astype(float))
   
 
   if args.threads:
@@ -227,17 +228,14 @@ if __name__ == "__main__":
   model = None
   model_name = args.model.lower()
   if model_name == 'protbert':
-    hidden_size = 256
-    output_size = 1
-    #model = Baseline(nn_classes=args.n_class, freeze_bert=True) 
-    model = Baseline(nn_classes=args.n_class, freeze_bert=False) 
+    model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=True) 
 
   if model == None:
     raise Exception('Unable to initialize model \'{model}\''.format(model_name))
 
   # Define criterion, optimizer and lr scheduler
-  criterion = torch.nn.CrossEntropyLoss().to(device) #TODO
-  # criterion = torch.nn.BCELoss().to(device)
+  # criterion = torch.nn.CrossEntropyLoss().to(device) #TODO
+  criterion = torch.nn.BCELoss().to(device)
   # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
   optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
@@ -250,7 +248,7 @@ if __name__ == "__main__":
     optimizer,
     exp_lr_scheduler,
     num_epochs=args.epoch_number,
-    save_folder=args.input,
+    save_folder=args.checkpoint,
     batch_size=args.batch_size,
     device=device
   )

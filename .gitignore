@@ -41,5 +41,10 @@ test_output/
 
 *.DS_Store
 
+# Ignore folder
+checkpoints/
+nohup_training/
+env/
+
 # Ignore subfolders inside dataset folder
 dataset/*/

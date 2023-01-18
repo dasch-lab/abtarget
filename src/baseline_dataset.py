@@ -192,7 +192,7 @@ class CovAbDabDataset(Dataset):
         self._len = len(self._data.index)
 
         # Extract the labels
-        self._labels = self._data["label"]
+        self._labels = self._data["label"].astype(float)
         print(self._labels)
 
     def __len__(self):
