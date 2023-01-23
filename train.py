@@ -103,7 +103,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
           outputs = model(inputs)
           _, preds = torch.max(outputs, 1)
           print(torch.squeeze(outputs))
-          loss = criterion(torch.squeeze(outputs), labels)
+          loss = criterion(torch.squeeze(outputs).type(torch.float32), labels.type(torch.float32))
           if phase == "train":
             loss.backward()
             optimizer.step()
@@ -141,13 +141,13 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
 
           # Store checkpoint
           checkpoint_path = os.path.join(save_path, 'epoch-{0}'.format(epoch+1))
-          torch.save({
-            "epoch": epoch,
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "loss": loss,
-            "batch_size": batch_size,
-          }, checkpoint_path)
+          #torch.save({
+          #  "epoch": epoch,
+          #  "model_state_dict": model.state_dict(),
+          #  "optimizer_state_dict": optimizer.state_dict(),
+          #  "loss": loss,
+          #  "batch_size": batch_size,
+          #}, checkpoint_path)
 
   time_elapsed = time.time() - since
   print('Training complete in {h}:{m}:{s}'.format(
@@ -234,10 +234,10 @@ if __name__ == "__main__":
     raise Exception('Unable to initialize model \'{model}\''.format(model_name))
 
   # Define criterion, optimizer and lr scheduler
-  # criterion = torch.nn.CrossEntropyLoss().to(device) #TODO
+  #criterion = torch.nn.CrossEntropyLoss().to(device) #TODO
   criterion = torch.nn.BCELoss().to(device)
   # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-  optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+  optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
 
   # Train model

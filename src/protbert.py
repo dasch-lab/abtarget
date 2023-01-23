@@ -1,9 +1,10 @@
 import torch
 from torch import nn
-from transformers import BertModel, BertTokenizer
+from transformers import BertModel, BertTokenizer, logging
 
 PRE_TRAINED_MODEL_NAME = "Rostlab/prot_bert_bfd"
 MAX_LEN = 512
+logging.set_verbosity_error()
 
 # Set the device
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -19,6 +20,7 @@ class BertEncoder(nn.Module):
 
     def forward(self, x):
 
+        x = [ ' '.join(list(i)) for i in x ]
         x = self.tokenizer(
             x,
             truncation=True,
@@ -32,6 +34,18 @@ class BertEncoder(nn.Module):
 
         x = self.bert(**x)
         return torch.mean(x["last_hidden_state"], 1)
+
+        #x['input_ids']=x['input_ids'].to(device)
+        #x['attention_mask']=x['attention_mask'].to(device)
+
+        # Embed sequence
+        #output = self.bert(
+        #input_ids=x['input_ids'],
+        # attention_mask=x['attention_mask']
+        #)
+        #return output.last_hidden_state
+
+    
 
 class Baseline(nn.Module):
     """
@@ -78,7 +92,12 @@ class Baseline(nn.Module):
         print(f"Classification_dim: {classification_dim}")
 
         # binary classification head
-        head = nn.Linear(classification_dim, nn_classes)
+        head = nn.Sequential(
+            nn.Linear(classification_dim, nn_classes),
+            nn.Sigmoid()
+        )
+    
+
         self.head = head.to(device)
 
     
