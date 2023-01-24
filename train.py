@@ -9,9 +9,10 @@ from collections import defaultdict
 import pandas as pd
 import torch
 from torch.utils.data import random_split
-from src.metrics import MCC
+
 from src.protbert import Baseline
 from src.baseline_dataset import MabMultiStrainBinding, CovAbDabDataset
+from src.metrics import MCC
 
 def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, proportion=None):
 
@@ -102,8 +103,10 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
         with torch.set_grad_enabled(phase == "train"):
           outputs = model(inputs)
           _, preds = torch.max(outputs, 1)
-          print(torch.squeeze(outputs))
-          loss = criterion(torch.squeeze(outputs).type(torch.float32), labels.type(torch.float32))
+          print(outputs)
+          print(preds)
+          print(labels)
+          loss = criterion(outputs, labels)
           if phase == "train":
             loss.backward()
             optimizer.step()
@@ -140,7 +143,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
             os.mkdir(save_path)
 
           # Store checkpoint
-          checkpoint_path = os.path.join(save_path, 'epoch-{0}'.format(epoch+1))
+          #checkpoint_path = os.path.join(save_path, 'epoch-{0}'.format(epoch+1))
           #torch.save({
           #  "epoch": epoch,
           #  "model_state_dict": model.state_dict(),
@@ -173,8 +176,8 @@ if __name__ == "__main__":
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=8)
   argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
-  argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=1)
-  
+  argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
+
   # Parse arguments
   args = argparser.parse_args()
   
@@ -183,9 +186,7 @@ if __name__ == "__main__":
     random.seed(args.random)
   
   # Create the dataset object
-  #dataset = MabMultiStrainBinding(os.path.join(args.input))
-  dataset = CovAbDabDataset(os.path.join(args.input, "abdb_dataset.csv"))
-  #labels_prova = torch.from_numpy(dataset.labels.numpy().astype(float))
+  dataset = CovAbDabDataset(os.path.join(args.input, 'abdb_dataset.csv'))
   
 
   if args.threads:
@@ -198,7 +199,7 @@ if __name__ == "__main__":
   # Save Dataset or Dataloader for later evaluation
   save_dataset = True
   if save_dataset:
-    save_path = os.path.join(args.checkpoint, 'checkpoints')
+    save_path = os.path.join(args.input, 'checkpoints')
     if not os.path.exists(save_path):
       os.mkdir(save_path)
 
@@ -227,17 +228,19 @@ if __name__ == "__main__":
   # Select model
   model = None
   model_name = args.model.lower()
-  if model_name == 'protbert':
-    model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=True) 
+  #if model_name == 'rcnn':
+  #  hidden_size = 256
+  #  output_size = 2
+  model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=True) 
 
   if model == None:
     raise Exception('Unable to initialize model \'{model}\''.format(model_name))
 
   # Define criterion, optimizer and lr scheduler
-  #criterion = torch.nn.CrossEntropyLoss().to(device) #TODO
-  criterion = torch.nn.BCELoss().to(device)
+  criterion = torch.nn.CrossEntropyLoss().to(device) #TODO
+  #criterion = torch.nn.BCELoss().to(device)
   # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-  optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+  optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
 
   # Train model
