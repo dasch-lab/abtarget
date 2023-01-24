@@ -103,9 +103,9 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
         with torch.set_grad_enabled(phase == "train"):
           outputs = model(inputs)
           _, preds = torch.max(outputs, 1)
-          print(outputs)
-          print(preds)
-          print(labels)
+          #print(outputs)
+          #print(preds)
+          #print(labels)
           loss = criterion(outputs, labels)
           if phase == "train":
             loss.backward()
@@ -142,15 +142,15 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
           if not os.path.exists(save_path):
             os.mkdir(save_path)
 
-          # Store checkpoint
-          #checkpoint_path = os.path.join(save_path, 'epoch-{0}'.format(epoch+1))
-          #torch.save({
-          #  "epoch": epoch,
-          #  "model_state_dict": model.state_dict(),
-          #  "optimizer_state_dict": optimizer.state_dict(),
-          #  "loss": loss,
-          #  "batch_size": batch_size,
-          #}, checkpoint_path)
+  # Store checkpoint
+  checkpoint_path = os.path.join(save_path, 'epoch_{0}'.format(epoch+1))
+  torch.save({
+    "epoch": epoch,
+    "model_state_dict": model.state_dict(),
+    "optimizer_state_dict": optimizer.state_dict(),
+    "loss": loss,
+    "batch_size": batch_size,
+  }, checkpoint_path)
 
   time_elapsed = time.time() - since
   print('Training complete in {h}:{m}:{s}'.format(
