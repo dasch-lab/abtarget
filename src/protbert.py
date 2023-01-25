@@ -94,7 +94,7 @@ class Baseline(nn.Module):
         # binary classification head
         head = nn.Sequential(
             nn.Linear(classification_dim, nn_classes),
-            nn.Sigmoid()
+            #nn.Sigmoid()
         )
     
 

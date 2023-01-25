@@ -45,6 +45,7 @@ test_output/
 checkpoints/
 nohup_training/
 env/
+figures/
 
 # Ignore subfolders inside dataset folder
 dataset/*/

@@ -13,6 +13,7 @@ from torch.utils.data import random_split
 from src.protbert import Baseline
 from src.baseline_dataset import MabMultiStrainBinding, CovAbDabDataset
 from src.metrics import MCC
+from matplotlib import pyplot as plt
 
 def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, proportion=None):
 
@@ -77,6 +78,10 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
   since = time.time()
   best_model_wts = copy.deepcopy(model.state_dict())
   best_acc = 0.0
+  train_loss = []
+  test_loss = []
+  train_acc = []
+  test_acc = []
 
   for epoch in range(num_epochs):
     print(f"Epoch {epoch+1}/{num_epochs}")
@@ -121,7 +126,8 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
         epoch_loss = running_loss / dataset_size
         epoch_acc = running_correct.double() / dataset_size
         mcc = mcc_score.update(preds, labels)
-        isPrint = True if count % 10 == 0 or count == size-1 else False
+        #isPrint = True if count % 10 == 0 or count == size-1 else False
+        isPrint = True if count == size-1 else False
         if isPrint:
           print('{phase} {count}/{total} Loss: {loss:.4f} Running Loss: {running_loss:.4f} Acc: {acc:.4f} MCC: {mcc:.4f}'.format(
             total=size,
@@ -141,6 +147,13 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
           save_path = os.path.join(save_folder, 'checkpoints')
           if not os.path.exists(save_path):
             os.mkdir(save_path)
+
+      if phase == "train":
+        train_loss.append(epoch_loss)
+        train_acc.append(epoch_acc.item())
+      else:
+        test_loss.append(epoch_loss)
+        test_acc.append(epoch_acc.item())
 
   # Store checkpoint
   checkpoint_path = os.path.join(save_path, 'epoch_{0}'.format(epoch+1))
@@ -163,7 +176,27 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
   # Load best model weights
   model.load_state_dict(best_model_wts)
 
+  plot_train_test(train_loss, test_loss, 'Loss')
+  plot_train_test(train_acc, test_acc, 'Accuracy')
+
   return model
+
+def plot_train_test(train_list, test_list, title):
+  epochs = [i  for i in range(args.epoch_number)]
+  
+  fig, ax = plt.subplots(figsize = (5, 2.7), layout = 'constrained')
+  ax.plot(epochs, train_list, label = 'train')
+  ax.plot(epochs, test_list, label = 'test')
+  ax.set_xlabel('Epoch')
+  ax.set_ylabel(args.criterion)
+  ax.set_title(title)
+  ax.legend();
+
+  # Save figure
+  plt.savefig('/disk1/abtarget/figures/'+title +'.png')
+
+
+
 
 if __name__ == "__main__":
 
@@ -172,14 +205,19 @@ if __name__ == "__main__":
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
-  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=100)
-  argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=8)
   argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
+  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=50)
+  argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
   argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
+  argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='Adam')
+  argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=3e-5)
+  argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
 
   # Parse arguments
   args = argparser.parse_args()
+
+  print(f"Model: {args.model} | Epochs: {args.epoch_number} | Batch: {args.batch_size} | Optimizer: {args.optimizer} | Criterion: {args.criterion} | Learning rate: {args.lr}")
   
   # Set random seed for reproducibility
   if args.random:
@@ -233,14 +271,20 @@ if __name__ == "__main__":
   #  output_size = 2
   model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=True) 
 
-  if model == None:
-    raise Exception('Unable to initialize model \'{model}\''.format(model_name))
+  #if model == None:
+  #  raise Exception('Unable to initialize model \'{model}\''.format(model_name))
 
   # Define criterion, optimizer and lr scheduler
-  criterion = torch.nn.CrossEntropyLoss().to(device) #TODO
-  #criterion = torch.nn.BCELoss().to(device)
-  # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-  optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+  if args.criterion == 'Crossentropy':
+    criterion = torch.nn.CrossEntropyLoss().to(device) #TODO
+  else:
+    criterion = torch.nn.BCELoss().to(device)
+
+  if args.optimizer == 'Adam':
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+  else:
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
+  
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
 
   # Train model
