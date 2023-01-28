@@ -80,15 +80,19 @@ class Baseline(nn.Module):
         
         projection = nn.Sequential(
             nn.Linear(self.embedding_length * 2, self.embedding_length),
+            nn.BatchNorm1d(self.embedding_length),
+            #nn.Dropout(p=0.4),
             nn.ReLU(),
-            #nn.Linear(bert_emb_size, bert_emb_size // 2),
+            #nn.MaxPool1d(3, 2, padding=1)
+            #nn.Linear(self.embedding_length, self.embedding_length // 2),
+            #nn.BatchNorm1d(self.embedding_length // 2),
             #nn.ReLU(),
         )
     
         self.projection = projection.to(device)
         #classification_dim = min([_.out_features for _ in projection.modules() if isinstance(_, nn.Linear)])
         # assert classification_dim == 512
-        classification_dim = self.embedding_length
+        classification_dim = self.embedding_length #// 2
         print(f"Classification_dim: {classification_dim}")
 
         # binary classification head
@@ -108,19 +112,9 @@ class Baseline(nn.Module):
         xvh = self.bert_encoder(vh)
         xvl = self.bert_encoder(vl)
         x = torch.cat((xvh, xvl), 1)
+        #x = torch.add(xvh, xvl)
 
         x = self.projection(x)
         x = self.head(x)
-        #logits = self.label(x)
-        #logits = self.softmax(x)
 
         return x
-
-
-# Check model parameter freezing
-# baseline = Baseline(nn_classes=2, freeze_bert=False)
-# list(baseline.children())
-# print(sum([param.nelement() for param in baseline.parameters() if param.requires_grad]))
-#for name, param in baseline.named_parameters():
-#    if param.requires_grad:
-#        print('## ', name, param.requires_grad)

@@ -82,6 +82,10 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
   test_loss = []
   train_acc = []
   test_acc = []
+  train_zero_class = []
+  test_zero_class = []
+  train_one_class = []
+  test_one_class = []
 
   for epoch in range(num_epochs):
     print(f"Epoch {epoch+1}/{num_epochs}")
@@ -101,6 +105,9 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
       dataset_size = len(dataloaders[phase].dataset)
       size = len(dataloaders[phase])
       mcc_score = MCC()
+      zeros = 0
+      ones = 0
+
       for count, inputs in enumerate(dataloaders[phase]):
 
         labels = inputs['label'].to(device)
@@ -108,6 +115,9 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
         with torch.set_grad_enabled(phase == "train"):
           outputs = model(inputs)
           _, preds = torch.max(outputs, 1)
+          one = torch.sum(preds).item()
+          ones += one
+          zeros += (args.batch_size - one)
           #print(outputs)
           #print(preds)
           #print(labels)
@@ -151,9 +161,13 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
       if phase == "train":
         train_loss.append(epoch_loss)
         train_acc.append(epoch_acc.item())
+        train_zero_class.append(zeros)
+        train_one_class.append(ones)
       else:
         test_loss.append(epoch_loss)
         test_acc.append(epoch_acc.item())
+        test_zero_class.append(zeros)
+        test_one_class.append(ones)
 
   # Store checkpoint
   checkpoint_path = os.path.join(save_path, 'epoch_{0}'.format(epoch+1))
@@ -176,19 +190,30 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
   # Load best model weights
   model.load_state_dict(best_model_wts)
 
-  plot_train_test(train_loss, test_loss, 'Loss')
-  plot_train_test(train_acc, test_acc, 'Accuracy')
+  plot_train_test(train_loss, test_loss, 'Loss', 'train', 'test')
+  plot_train_test(train_acc, test_acc, 'Accuracy', 'train', 'test')
+  plot_train_test(train_zero_class, train_one_class, 'Train classes', 'zero', 'one', level = len(train_data))
+  plot_train_test(test_zero_class, test_one_class, 'Test classes', 'zero', 'one', level = len(test_data))
 
   return model
 
-def plot_train_test(train_list, test_list, title):
+def plot_train_test(train_list, test_list, title, label1, label2, level = None):
   epochs = [i  for i in range(args.epoch_number)]
   
   fig, ax = plt.subplots(figsize = (5, 2.7), layout = 'constrained')
-  ax.plot(epochs, train_list, label = 'train')
-  ax.plot(epochs, test_list, label = 'test')
+  ax.plot(epochs, train_list, label = label1)
+  ax.plot(epochs, test_list, label = label2)
+
+  if level is not None:
+    ax.plot(epochs, [level]*args.epoch_number, label = 'max')
+    ax.plot(epochs, [level//2]*args.epoch_number, label = 'threshold')
+    ax.plot(epochs, [0]*args.epoch_number, label = 'min')
+    ax.set_ylabel('Classes')
+  else:
+    ax.set_ylabel(args.criterion)
+
   ax.set_xlabel('Epoch')
-  ax.set_ylabel(args.criterion)
+  #ax.set_ylabel(args.criterion)
   ax.set_title(title)
   ax.legend();
 
@@ -206,12 +231,12 @@ if __name__ == "__main__":
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
   argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
-  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=50)
+  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=100)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
   argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
   argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='Adam')
-  argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=3e-5)
+  argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=1e-6)
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
 
   # Parse arguments
@@ -285,7 +310,7 @@ if __name__ == "__main__":
   else:
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
   
-  exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
+  exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.epoch_number//4, gamma=1)
 
   # Train model
   train_model(
