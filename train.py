@@ -154,9 +154,18 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
           best_acc = epoch_acc
           best_model_wts = copy.deepcopy(model.state_dict())
 
-          save_path = os.path.join(save_folder, 'checkpoints')
+          save_path = os.path.join(save_folder, 'checkpoints', args.model)
           if not os.path.exists(save_path):
             os.mkdir(save_path)
+          
+          checkpoint_path = os.path.join(save_path, args.save_name)
+          torch.save({
+            "epoch": epoch,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "loss": loss,
+            "batch_size": batch_size,
+            }, checkpoint_path)
 
       if phase == "train":
         train_loss.append(epoch_loss)
@@ -217,8 +226,13 @@ def plot_train_test(train_list, test_list, title, label1, label2, level = None):
   ax.set_title(title)
   ax.legend();
 
+  image_save_path = os.path.join(args.checkpoint,'figures',args.save_name)
+
+  if not os.path.exists(image_save_path):
+            os.mkdir(image_save_path)
+
   # Save figure
-  plt.savefig('/disk1/abtarget/figures/'+title +'.png')
+  plt.savefig(image_save_path+'/'+title +'.png')
 
 
 
@@ -230,17 +244,18 @@ if __name__ == "__main__":
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
-  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
+  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'antiberty')
   argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=100)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
   argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
   argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='Adam')
-  argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=1e-6)
+  argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=3e-5)
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
 
   # Parse arguments
   args = argparser.parse_args()
+  args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion])
 
   print(f"Model: {args.model} | Epochs: {args.epoch_number} | Batch: {args.batch_size} | Optimizer: {args.optimizer} | Criterion: {args.criterion} | Learning rate: {args.lr}")
   
@@ -294,7 +309,7 @@ if __name__ == "__main__":
   #if model_name == 'rcnn':
   #  hidden_size = 256
   #  output_size = 2
-  model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=True) 
+  model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=True, model_name=args.model) 
 
   #if model == None:
   #  raise Exception('Unable to initialize model \'{model}\''.format(model_name))
@@ -310,7 +325,7 @@ if __name__ == "__main__":
   else:
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
   
-  exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.epoch_number//4, gamma=1)
+  exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
 
   # Train model
   train_model(
