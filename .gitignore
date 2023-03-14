@@ -49,3 +49,6 @@ figures/
 
 # Ignore subfolders inside dataset folder
 dataset/*/
+
+# Ignore cache
+cache/
