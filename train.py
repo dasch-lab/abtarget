@@ -67,12 +67,103 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, propo
     print('{0} dataset:'.format(key))
     for name in classList:
       print(' Class {0}: {1}'.format(name, classStats[key][name]))
-  
+
   # Construct the test and train datasets
   train_data = torch.utils.data.Subset(dataset, resultList['train'])
   test_data = torch.utils.data.Subset(dataset, resultList['test'])
 
   return train_data, test_data
+
+
+def controlled_split(dataset : torch.utils.data.Dataset, labels, fraction, subset = 0, proportion=None):
+
+  '''
+  Split the dataset proportionally according to the sample label
+  '''
+
+  # Get classes
+  classList = list(set(labels))
+  resultList = {
+    'test': [],
+    'train': []
+  }
+
+  random.seed(22)
+  classData = {}
+  for name in classList:
+    # Get subsample of indexes for this class
+    classData[name] = [ idx for idx, label in enumerate(labels) if label == name ]
+
+  # Get shorter element
+  shorter_class = min(classData.items(), key=lambda x: len(x[1]))[0]
+  if proportion:
+    subset_size = len(classData[shorter_class])
+
+    '''for name in classList:
+      if name == shorter_class:
+        continue
+
+      ## divide the class in subsets
+      step = int(2 * subset_size/3)
+      classDatasubset = [classData[name][base:base+subset_size-1] for base in range(0,len(classData[name]),step)]
+      #classData[name] = random.sample(classData[name], subset_size)
+      classData[name] =  classDatasubset[subset]'''
+
+  classStats = {
+    'train': {},
+    'test': {}
+  }
+
+  for name in classList:
+    train_size = round(subset_size * fraction)
+    
+    if name == shorter_class:
+      trainList = random.sample(classData[name], train_size)
+      testList = [ idx for idx in classData[name] if idx not in trainList ]
+    else:
+      testList = random.sample(classData[name], len(classData[shorter_class]) - train_size)
+      trainList_tot = [ idx for idx in classData[name] if idx not in testList ]
+      random.shuffle(trainList_tot)
+      step = int(2 * train_size/3)
+
+      classDatasubset = []
+      for base in range(0,len(trainList_tot),step):
+        if base+train_size > len(trainList_tot):
+          classDatasubset.append(trainList_tot[base:])
+          break
+        else:
+          classDatasubset.append(trainList_tot[base:base+train_size])
+
+      trainList =  classDatasubset[subset]
+      
+
+    # Update stats
+    classStats['train'][name] = len(trainList)
+    classStats['test'][name] = len(testList)
+
+    # Concatenate indexes
+    resultList['train'].extend(trainList)
+    resultList['test'].extend(testList)
+
+  # Shuffle index lists
+  for key in resultList:
+    random.shuffle(resultList[key])
+    print('{0} dataset:'.format(key))
+    for name in classList:
+      print(' Class {0}: {1}'.format(name, classStats[key][name]))
+  
+  # Construct the test and train datasets
+  train_data = torch.utils.data.Subset(dataset, resultList['train'])
+  test_data = torch.utils.data.Subset(dataset, resultList['test'])
+
+      
+  # Save validation split in a txt file
+  with open('/disk1/abtarget/dataset/split/test.txt','w') as file:
+    file.write("\n".join(str(item) for item in resultList['test']))
+    #data.write(str(dictionary))
+
+  return train_data, test_data
+
 
 def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=1, save_folder=None, batch_size=8, device='cpu'):
   since = time.time()
@@ -154,9 +245,13 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
           best_acc = epoch_acc
           best_model_wts = copy.deepcopy(model.state_dict())
 
-          save_path = os.path.join(save_folder, 'checkpoints', args.model)
+          if args.ensamble:
+            save_path = os.path.join(save_folder, 'checkpoints', args.model, 'ensamble', str(subset))
+          else:
+            save_path = os.path.join(save_folder, 'checkpoints', args.model, 'single')
           if not os.path.exists(save_path):
             os.mkdir(save_path)
+          
           
           checkpoint_path = os.path.join(save_path, args.save_name)
           torch.save({
@@ -179,7 +274,9 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
         test_one_class.append(ones)
 
   # Store checkpoint
+  
   checkpoint_path = os.path.join(save_path, 'epoch_{0}'.format(epoch+1))
+
   torch.save({
     "epoch": epoch,
     "model_state_dict": model.state_dict(),
@@ -244,7 +341,7 @@ if __name__ == "__main__":
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
-  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'antiberty')
+  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
   argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=100)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
@@ -252,10 +349,15 @@ if __name__ == "__main__":
   argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='Adam')
   argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=3e-5)
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
+  argparser.add_argument('-en', '--ensamble', type=bool, help='Ensamble model', default= False)
+  argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 3)
 
   # Parse arguments
   args = argparser.parse_args()
-  args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion])
+  if args.ensamble:
+    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.subset)])
+  else:
+    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion])
 
   print(f"Model: {args.model} | Epochs: {args.epoch_number} | Batch: {args.batch_size} | Optimizer: {args.optimizer} | Criterion: {args.criterion} | Learning rate: {args.lr}")
   
@@ -272,18 +374,25 @@ if __name__ == "__main__":
 
   # Train test split 
   nn_train = 0.8
-  train_data, test_data = stratified_split(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
+  save_path = os.path.join(args.input, 'checkpoints') 
+
+  if (args.ensamble):
+    subset = args.subset
+    train_data, test_data = controlled_split(dataset, dataset.labels, fraction=nn_train, subset = subset, proportion=0.5)
+  else:
+    train_data, test_data = stratified_split(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
+    
 
   # Save Dataset or Dataloader for later evaluation
-  save_dataset = True
-  if save_dataset:
-    save_path = os.path.join(args.input, 'checkpoints')
-    if not os.path.exists(save_path):
-      os.mkdir(save_path)
+  #save_dataset = True
+  #if save_dataset:
+  #  save_path = os.path.join(args.input, 'checkpoints')
+  #  if not os.path.exists(save_path):
+  #    os.mkdir(save_path)
 
-    # Store datasets
-    torch.save(train_data, os.path.join(save_path, 'train_data.pt'))
-    torch.save(test_data, os.path.join(save_path, 'test_data.pt'))
+  # Store datasets
+  #  torch.save(train_data, os.path.join(save_path, 'train_data.pt'))
+  #  torch.save(test_data, os.path.join(save_path, 'test_data.pt'))
     
   # Train and Test Dataloaders - (Wrap data with appropriate data loaders)
   train_loader = torch.utils.data.DataLoader(
