@@ -14,6 +14,57 @@ from src.protbert import Baseline
 from src.baseline_dataset import MabMultiStrainBinding, CovAbDabDataset
 from src.metrics import MCC
 from matplotlib import pyplot as plt
+random.seed(22)
+
+def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, fraction, proportion=None):
+
+  '''
+  Split the dataset proportionally according to the sample label
+  '''
+
+  # Get classes
+  classList = list(set(labels1))
+  resultList = {
+    'train': [],
+    'test': []
+  }
+
+  classData1 = {}
+  classData2 = {}
+  for name in classList:
+
+    # Get subsample of indexes for this class
+    classData1[name] = [ idx for idx, label in enumerate(labels1) if label == name ]
+    classData2[name] = [ idx for idx, label in enumerate(labels2) if label == name ]
+
+  classStats = {
+    'train':{},
+    'test': {}
+  }
+  for name in classList:
+
+    testList = classData2[name]
+    trainList = classData1[name]
+
+    # Update stats
+    classStats['test'][name] = len(testList)
+
+    # Concatenate indexes
+    resultList['test'].extend(testList)
+
+  # Shuffle index lists
+  for key in resultList:
+    random.shuffle(resultList[key])
+    print('{0} dataset:'.format(key))
+    for name in classList:
+      print(' Class {0}: {1}'.format(name, classStats[key][name]))
+      
+
+  train_data = torch.utils.data.Subset(dataset1, resultList['train'])
+  test_data = torch.utils.data.Subset(dataset2, resultList['test'])
+
+  return train_data, test_data
+
 
 def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, proportion=None):
 
@@ -342,7 +393,7 @@ if __name__ == "__main__":
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
   argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
-  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=100)
+  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=50)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
   argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
@@ -350,14 +401,15 @@ if __name__ == "__main__":
   argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=3e-5)
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
   argparser.add_argument('-en', '--ensamble', type=bool, help='Ensamble model', default= False)
+  argparser.add_argument('-tr', '--pretrain', type=bool, help='Freeze encoder', default= True)
   argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 3)
 
   # Parse arguments
   args = argparser.parse_args()
   if args.ensamble:
-    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.subset)])
+    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), str(args.subset)])
   else:
-    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion])
+    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain)])
 
   print(f"Model: {args.model} | Epochs: {args.epoch_number} | Batch: {args.batch_size} | Optimizer: {args.optimizer} | Criterion: {args.criterion} | Learning rate: {args.lr}")
   
@@ -367,6 +419,8 @@ if __name__ == "__main__":
   
   # Create the dataset object
   dataset = CovAbDabDataset(os.path.join(args.input, 'abdb_dataset.csv'))
+  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug.csv')
+  dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
   
 
   if args.threads:
@@ -380,7 +434,8 @@ if __name__ == "__main__":
     subset = args.subset
     train_data, test_data = controlled_split(dataset, dataset.labels, fraction=nn_train, subset = subset, proportion=0.5)
   else:
-    train_data, test_data = stratified_split(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
+    #train_data, test_data = stratified_split(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
+    train_data, test_data = stratified_split(dataset1, dataset2, dataset1.labels, dataset2.labels, fraction=nn_train, proportion=0.5)
     
 
   # Save Dataset or Dataloader for later evaluation
@@ -418,7 +473,7 @@ if __name__ == "__main__":
   #if model_name == 'rcnn':
   #  hidden_size = 256
   #  output_size = 2
-  model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=True, model_name=args.model) 
+  model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model) 
 
   #if model == None:
   #  raise Exception('Unable to initialize model \'{model}\''.format(model_name))
