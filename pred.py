@@ -16,8 +16,68 @@ from src.metrics import MCC
 from matplotlib import pyplot as plt
 from sklearn import metrics
 import numpy as np
+random.seed(22)
 
-def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, proportion=None):
+def stratified_split_augontest(dataset : torch.utils.data.Dataset, labels, fraction, proportion=None):
+
+  '''
+  Split the dataset proportionally according to the sample label
+  '''
+
+  # Get classes
+  classList = list(set(labels))
+  resultList = {
+    'test': [],
+    'train': []
+  }
+
+  classData = {}
+  for name in classList:
+
+    # Get subsample of indexes for this class
+    classData[name] = [ idx for idx, label in enumerate(labels) if label == name ]
+
+  # Get shorter element
+  shorter_class = min(classData.items(), key=lambda x: len(x[1]))[0]
+  if proportion:
+    subset_size = len(classData[shorter_class])
+    for name in classList:
+      if name == shorter_class:
+        continue
+
+      classData[name] = random.sample(classData[name], subset_size)
+
+  classStats = {
+    'train': {},
+    'test': {}
+  }
+  for name in classList:
+    pdb = [el for el in range(len(dataset)) if (dataset._data['name'].iloc[el].endswith('.pdb') and (dataset._data['label'].iloc[el] == name))]
+    testList = random.sample(pdb, 60)
+    trainList = [el for el in range(len(dataset)) if ((el not in testList) and (dataset._data['label'].iloc[el] == name))]
+
+    # Update stats
+    classStats['train'][name] = len(trainList)
+    classStats['test'][name] = len(testList)
+
+    # Concatenate indexes
+    resultList['train'].extend(trainList)
+    resultList['test'].extend(testList)
+
+  # Shuffle index lists
+  for key in resultList:
+    random.shuffle(resultList[key])
+    print('{0} dataset:'.format(key))
+    for name in classList:
+      print(' Class {0}: {1}'.format(name, classStats[key][name]))
+
+  # Construct the test and train datasets
+  train_data = torch.utils.data.Subset(dataset, resultList['train'])
+  test_data = torch.utils.data.Subset(dataset, resultList['test'])
+
+  return train_data, test_data
+
+def load_data(dataset : torch.utils.data.Dataset, labels, fraction, proportion=None):
 
   '''
   Split the dataset proportionally according to the sample label
@@ -59,6 +119,67 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, propo
 
   return test_data
 
+def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, proportion=None):
+
+  '''
+  Split the dataset proportionally according to the sample label
+  '''
+
+  # Get classes
+  classList = list(set(labels))
+  resultList = {
+    'test': [],
+    'train': []
+  }
+
+  classData = {}
+  for name in classList:
+
+    # Get subsample of indexes for this class
+    classData[name] = [ idx for idx, label in enumerate(labels) if label == name ]
+
+  # Get shorter element
+  shorter_class = min(classData.items(), key=lambda x: len(x[1]))[0]
+  if proportion:
+    subset_size = len(classData[shorter_class])
+    for name in classList:
+      if name == shorter_class:
+        continue
+
+      classData[name] = random.sample(classData[name], subset_size)
+
+  classStats = {
+    'train': {},
+    'test': {}
+  }
+  for name in classList:
+    train_size = round(len(classData[name]) * fraction)
+    trainList = random.sample(classData[name], train_size)
+    testList = [ idx for idx in classData[name] if idx not in trainList ]
+
+    # Update stats
+    classStats['train'][name] = len(trainList)
+    classStats['test'][name] = len(testList)
+
+    # Concatenate indexes
+    resultList['train'].extend(trainList)
+    resultList['test'].extend(testList)
+
+  # Shuffle index lists
+  for key in resultList:
+    random.shuffle(resultList[key])
+    print('{0} dataset:'.format(key))
+    for name in classList:
+      print(' Class {0}: {1}'.format(name, classStats[key][name]))
+
+  # Construct the test and train datasets
+  train_data = torch.utils.data.Subset(dataset, resultList['train'])
+  test_data = torch.utils.data.Subset(dataset, resultList['test'])
+  name = [dataset._data['name'].iloc[ind] for ind in test_data.indices]
+
+  return train_data, test_data, name
+
+
 def eval_model(model, dataloaders):
   origin = []
   pred = []
@@ -83,7 +204,7 @@ def eval_model(model, dataloaders):
   plt.savefig('confusion_matrix.jpg')
 
 
-  return model
+  return origin, pred
 
 def plot_train_test(train_list, test_list, title, label1, label2, level = None):
   epochs = [i  for i in range(args.epoch_number)]
@@ -143,7 +264,9 @@ if __name__ == "__main__":
     random.seed(22)
   
   # Create the dataset object
-  dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+  #dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+  #dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/aug_test.csv')
+  dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug.csv')
   
 
   if args.threads:
@@ -151,7 +274,9 @@ if __name__ == "__main__":
 
   # Train test split 
   nn_train = 0.8
-  test_data = stratified_split(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
+  #test_data = load_data(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
+  train_data, test_data = stratified_split_augontest(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
+  #train_data, test_data, name = stratified_split(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
 
   # Save Dataset or Dataloader for later evaluation
   save_dataset = True
@@ -191,16 +316,21 @@ if __name__ == "__main__":
   
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
 
-  checkpoint = torch.load('/disk1/abtarget/checkpoints/protbert/single/protbert_50_16_Adam_Crossentropy_True')
+  checkpoint = torch.load('/disk1/abtarget/checkpoints/protbert/single/protbert_50_16_Adam_Crossentropy_True_aug')
   model.load_state_dict(checkpoint['model_state_dict'])
   optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
   epoch = checkpoint['epoch']
   loss = checkpoint['loss']
 
   # Train model
-  eval_model(
+  pred, org = eval_model(
     model,
     dataloaders
   )
+
+  df = pd.DataFrame(list(zip(name, pred, org)), columns=['Name','GT','Pred'])
+  df.to_csv('/disk1/abtarget/dataset/split/res_val.csv', index = False)
+
+
 
   print("\n ## Training DONE ")

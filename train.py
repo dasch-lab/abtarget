@@ -125,6 +125,65 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, propo
 
   return train_data, test_data
 
+def stratified_split_augontest(dataset : torch.utils.data.Dataset, labels, fraction, proportion=None):
+
+  '''
+  Split the dataset proportionally according to the sample label
+  '''
+
+  # Get classes
+  classList = list(set(labels))
+  resultList = {
+    'test': [],
+    'train': []
+  }
+
+  classData = {}
+  for name in classList:
+
+    # Get subsample of indexes for this class
+    classData[name] = [ idx for idx, label in enumerate(labels) if label == name ]
+
+  # Get shorter element
+  shorter_class = min(classData.items(), key=lambda x: len(x[1]))[0]
+  if proportion:
+    subset_size = len(classData[shorter_class])
+    for name in classList:
+      if name == shorter_class:
+        continue
+
+      classData[name] = random.sample(classData[name], subset_size)
+
+  classStats = {
+    'train': {},
+    'test': {}
+  }
+  for name in classList:
+    pdb = [el for el in range(len(dataset)) if (dataset._data['name'].iloc[el].endswith('.pdb') and (dataset._data['label'].iloc[el] == name))]
+    testList = random.sample(pdb, 60)
+    trainList = [el for el in range(len(dataset)) if ((el not in testList) and (dataset._data['label'].iloc[el] == name))]
+
+    # Update stats
+    classStats['train'][name] = len(trainList)
+    classStats['test'][name] = len(testList)
+
+    # Concatenate indexes
+    resultList['train'].extend(trainList)
+    resultList['test'].extend(testList)
+
+  # Shuffle index lists
+  for key in resultList:
+    random.shuffle(resultList[key])
+    print('{0} dataset:'.format(key))
+    for name in classList:
+      print(' Class {0}: {1}'.format(name, classStats[key][name]))
+
+  # Construct the test and train datasets
+  train_data = torch.utils.data.Subset(dataset, resultList['train'])
+  test_data = torch.utils.data.Subset(dataset, resultList['test'])
+
+  return train_data, test_data
+
 
 def controlled_split(dataset : torch.utils.data.Dataset, labels, fraction, subset = 0, proportion=None):
 
@@ -347,8 +406,8 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
   # Load best model weights
   model.load_state_dict(best_model_wts)
 
-  plot_train_test(train_loss, test_loss, 'Loss', 'train', 'test')
-  plot_train_test(train_acc, test_acc, 'Accuracy', 'train', 'test')
+  plot_train_test(train_loss, test_loss, 'Loss', 'train', 'val')
+  plot_train_test(train_acc, test_acc, 'Accuracy', 'train', 'val')
   plot_train_test(train_zero_class, train_one_class, 'Train classes', 'zero', 'one', level = len(train_data))
   plot_train_test(test_zero_class, test_one_class, 'Test classes', 'zero', 'one', level = len(test_data))
 
@@ -409,7 +468,7 @@ if __name__ == "__main__":
   if args.ensamble:
     args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), str(args.subset)])
   else:
-    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain)])
+    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'noaugval'])
 
   print(f"Model: {args.model} | Epochs: {args.epoch_number} | Batch: {args.batch_size} | Optimizer: {args.optimizer} | Criterion: {args.criterion} | Learning rate: {args.lr}")
   
@@ -434,8 +493,8 @@ if __name__ == "__main__":
     subset = args.subset
     train_data, test_data = controlled_split(dataset, dataset.labels, fraction=nn_train, subset = subset, proportion=0.5)
   else:
-    #train_data, test_data = stratified_split(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
-    train_data, test_data = stratified_split(dataset1, dataset2, dataset1.labels, dataset2.labels, fraction=nn_train, proportion=0.5)
+    train_data, test_data = stratified_split_augontest(dataset1, dataset.labels, fraction=nn_train, proportion=0.5)
+    #train_data, test_data = stratified_split(dataset1, dataset2, dataset1.labels, dataset2.labels, fraction=nn_train, proportion=0.5)
     
 
   # Save Dataset or Dataloader for later evaluation
