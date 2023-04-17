@@ -163,7 +163,7 @@ class Baseline(nn.Module):
         
         projection = nn.Sequential(
             nn.Linear(self.embedding_length * 2, self.embedding_length),
-            #nn.BatchNorm1d(self.embedding_length),
+            #nn.BatchNorm1d(self.embedding_length//2),
             #nn.SELU()
             nn.LeakyReLU(),
             #nn.GELU(),
@@ -202,7 +202,7 @@ class Baseline(nn.Module):
 
         return x
 
-'''class BaselineOne(nn.Module):
+class BaselineOne(nn.Module):
     """
     # Schema
     [BERT-VH]--|
@@ -277,23 +277,11 @@ class Baseline(nn.Module):
         vl = x['VL']
         xvh = self.encoder(vh)
         xvl = self.encoder(vl)
-        x = torch.cat((xvh, xvl), 0)
-        #x = torch.add(xvh, xvl)
-        x_n = torch.zeros_like(x.type(torch.float32))
-        #x_n = x + (0.1**0.5)*torch.randn(5, 10, 20)
-        x_n = self.noise(x_n)
+        x = torch.fmax(xvh, xvl, out=None)
+        x = torch.cat((xvh, xvl), 1)
 
-        if self.train_m:
-            x = torch.cat((x, x_n), 1)
-            r = nn.ReLU()
-            x = r(x)
-            pass
+        return xvh
 
-        x = self.projection(x)
-        x = self.head(x)
-
-        return x
-'''
 
 '''if __name__ == "__main__":
     
@@ -301,4 +289,5 @@ class Baseline(nn.Module):
     model = BaselineOne(1, device, nn_classes=1, freeze_bert=True, model_name='protbert', train_m=True)
     ab = {'VH': 'AABCDTHBFB', 'VL': 'AABCDTHBFB'}
     out = model(ab)
-    print(out)'''
+    print(out)
+'''

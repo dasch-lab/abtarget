@@ -179,6 +179,62 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, propo
 
   return train_data, test_data, name
 
+def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, train_size):
+
+  '''
+  Split the dataset proportionally according to the sample label
+  '''
+
+  # Get classes
+  classList = list(set(labels1))
+  resultList = {
+    'train': [],
+    'test': []
+  }
+
+  classData1 = {}
+  classData2 = {}
+  for name in classList:
+
+    # Get subsample of indexes for this class
+    classData1[name] = [ idx for idx, label in enumerate(labels1) if label == name ]
+    classData2[name] = [ idx for idx, label in enumerate(labels2) if label == name ]
+
+  classStats = {
+    'train':{},
+    'test': {}
+  }
+  for name in classList:
+
+    '''if name == 0:
+      trainList = random.sample(classData1[name], train_size)
+    else:
+      trainList = classData1[name]'''
+
+    testList = classData2[name]
+    trainList = classData1[name]
+    print(len(trainList))
+
+    # Update stats
+    classStats['test'][name] = len(testList)
+    classStats['train'][name] = len(trainList)
+
+    # Concatenate indexes
+    resultList['test'].extend(testList)
+    resultList['train'].extend(trainList)
+
+  # Shuffle index lists
+  '''for key in resultList:
+    random.shuffle(resultList[key])
+    print('{0} dataset:'.format(key))
+    for name in classList:
+      print(' Class {0}: {1}'.format(name, classStats[key][name]))'''
+      
+
+  train_data = torch.utils.data.Subset(dataset1, resultList['train'])
+  test_data = torch.utils.data.Subset(dataset2, resultList['test'])
+
+  return train_data, test_data
 
 def eval_model(model, dataloaders):
   origin = []
@@ -264,9 +320,13 @@ if __name__ == "__main__":
     random.seed(22)
   
   # Create the dataset object
-  #dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+  dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
   #dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/aug_test.csv')
-  dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug.csv')
+  #dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug.csv')
+
+  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train.csv')
+  dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+  
   
 
   if args.threads:
@@ -275,8 +335,10 @@ if __name__ == "__main__":
   # Train test split 
   nn_train = 0.8
   #test_data = load_data(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
-  train_data, test_data = stratified_split_augontest(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
+  #train_data, test_data = stratified_split_augontest(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
   #train_data, test_data, name = stratified_split(dataset, dataset.labels, fraction=nn_train, proportion=0.5)
+  train_data, test_data = stratified_split1(dataset1, dataset2, dataset1.labels, dataset2.labels, train_size = 10000)
+    
 
   # Save Dataset or Dataloader for later evaluation
   save_dataset = True
@@ -316,7 +378,7 @@ if __name__ == "__main__":
   
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
 
-  checkpoint = torch.load('/disk1/abtarget/checkpoints/protbert/single/protbert_50_16_Adam_Crossentropy_True_aug')
+  checkpoint = torch.load('/disk1/abtarget/checkpoints/protbert/single/protbert_50_16_Adam_Crossentropy_True_noaugval_accuracy_F1_256_best_f1')
   model.load_state_dict(checkpoint['model_state_dict'])
   optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
   epoch = checkpoint['epoch']
@@ -328,8 +390,8 @@ if __name__ == "__main__":
     dataloaders
   )
 
-  df = pd.DataFrame(list(zip(name, pred, org)), columns=['Name','GT','Pred'])
-  df.to_csv('/disk1/abtarget/dataset/split/res_val.csv', index = False)
+  #df = pd.DataFrame(list(zip(name, pred, org)), columns=['Name','GT','Pred'])
+  #df.to_csv('/disk1/abtarget/dataset/split/res_val.csv', index = False)
 
 
 

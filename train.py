@@ -10,13 +10,22 @@ import pandas as pd
 import torch
 from torch.utils.data import random_split
 
-from src.protbert import Baseline
+from src.protbert import Baseline, BaselineOne
 from src.baseline_dataset import MabMultiStrainBinding, CovAbDabDataset
 from src.metrics import MCC
 from matplotlib import pyplot as plt
-random.seed(22)
 
-def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, fraction, proportion=None):
+from sklearn.svm import OneClassSVM
+from sklearn.metrics import classification_report
+random.seed(22)
+import numpy as np
+from sklearn import metrics
+import umap
+import seaborn as sns
+from sklearn.metrics import f1_score
+from torchmetrics.classification import BinaryF1Score
+
+def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, train_size, tot):
 
   '''
   Split the dataset proportionally according to the sample label
@@ -43,28 +52,38 @@ def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.util
   }
   for name in classList:
 
+    if tot:
+      trainList = classData1[name]
+    else:
+      if name == 0:
+        trainList = random.sample(classData1[name], 160)
+      else:
+        trainList = classData1[name]
+
     testList = classData2[name]
-    trainList = classData1[name]
+    
+    print(len(trainList))
 
     # Update stats
     classStats['test'][name] = len(testList)
+    classStats['train'][name] = len(trainList)
 
     # Concatenate indexes
     resultList['test'].extend(testList)
+    resultList['train'].extend(trainList)
 
   # Shuffle index lists
-  for key in resultList:
+  '''for key in resultList:
     random.shuffle(resultList[key])
     print('{0} dataset:'.format(key))
     for name in classList:
-      print(' Class {0}: {1}'.format(name, classStats[key][name]))
+      print(' Class {0}: {1}'.format(name, classStats[key][name]))'''
       
 
   train_data = torch.utils.data.Subset(dataset1, resultList['train'])
   test_data = torch.utils.data.Subset(dataset2, resultList['test'])
 
   return train_data, test_data
-
 
 def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, proportion=None):
 
@@ -275,14 +294,19 @@ def controlled_split(dataset : torch.utils.data.Dataset, labels, fraction, subse
   return train_data, test_data
 
 
+
+
 def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=1, save_folder=None, batch_size=8, device='cpu'):
   since = time.time()
   best_model_wts = copy.deepcopy(model.state_dict())
   best_acc = 0.0
+  best_f1 = 0.0
   train_loss = []
   test_loss = []
   train_acc = []
   test_acc = []
+  train_f1 = []
+  test_f1 = []
   train_zero_class = []
   test_zero_class = []
   train_one_class = []
@@ -337,23 +361,38 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
         epoch_loss = running_loss / dataset_size
         epoch_acc = running_correct.double() / dataset_size
         mcc = mcc_score.update(preds, labels)
+        #epoch_f1 = f1_score(labels.cpu().numpy(), preds.cpu().numpy())
+        metric = BinaryF1Score().to(device)
+        epoch_f1 = metric(preds, labels)
         #isPrint = True if count % 10 == 0 or count == size-1 else False
         isPrint = True if count == size-1 else False
         if isPrint:
-          print('{phase} {count}/{total} Loss: {loss:.4f} Running Loss: {running_loss:.4f} Acc: {acc:.4f} MCC: {mcc:.4f}'.format(
+          print('{phase} {count}/{total} Loss: {loss:.4f} Running Loss: {running_loss:.4f} Acc: {acc:.4f} MCC: {mcc:.4f} F1: {f1:.4f}'.format(
             total=size,
             count=count,
             phase=phase,
             running_loss=epoch_loss,
             loss=current_loss,
             acc=epoch_acc,
-            mcc=mcc
+            mcc=mcc,
+            f1 = epoch_f1
           ))
 
         # Deep copy the model & save checkpoint to file
-        if phase == "test" and epoch_acc > best_acc:
-          best_acc = epoch_acc
-          best_model_wts = copy.deepcopy(model.state_dict())
+        if phase == "test": 
+        
+          if epoch_acc > best_acc:
+
+            best_acc = epoch_acc
+            best_model_wts = copy.deepcopy(model.state_dict())
+            name = '_best_accuracy'
+
+          elif epoch_f1 > best_f1:
+
+            best_f1 = epoch_f1
+            best_model_wts = copy.deepcopy(model.state_dict())
+            name = '_best_f1'
+
 
           if args.ensamble:
             save_path = os.path.join(save_folder, 'checkpoints', args.model, 'ensamble', str(subset))
@@ -362,8 +401,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
           if not os.path.exists(save_path):
             os.mkdir(save_path)
           
-          
-          checkpoint_path = os.path.join(save_path, args.save_name)
+          checkpoint_path = os.path.join(save_path, args.save_name + name)
           torch.save({
             "epoch": epoch,
             "model_state_dict": model.state_dict(),
@@ -431,7 +469,7 @@ def plot_train_test(train_list, test_list, title, label1, label2, level = None):
   ax.set_xlabel('Epoch')
   #ax.set_ylabel(args.criterion)
   ax.set_title(title)
-  ax.legend();
+  ax.legend()
 
   image_save_path = os.path.join(args.checkpoint,'figures',args.save_name)
 
@@ -441,6 +479,72 @@ def plot_train_test(train_list, test_list, title, label1, label2, level = None):
   # Save figure
   plt.savefig(image_save_path+'/'+title +'.png')
 
+def embedding_phase(dataloaders, phase):
+
+  print('embdedding phase')
+  labels = []
+  embeddings = []
+
+  for count, inputs in enumerate(dataloaders[phase]):
+
+    if (count < 10000):
+        print(count)
+        labels.append(np.squeeze(inputs['label'].cpu().numpy()))
+        embeddings.append(np.squeeze(model(inputs).cpu().numpy()))
+    else:
+        break
+    
+  
+  return labels, embeddings
+
+def train_OCSVM(model, dataloaders):
+  since = time.time()
+
+  # Epoch train and validation phase
+  model.eval()
+
+  labels, embeddings =  embedding_phase(dataloaders, "train")
+
+  #print('umap')
+  #reducer = umap.UMAP()
+  #embedding = reducer.fit_transform(embeddings)
+  #embedding.shape
+
+  #df_test = pd.DataFrame(embeddings, columns=['feature1', 'feature2'])
+  #df_test['y_test'] = labels
+  #plt.scatter(df_test['feature1'], df_test['feature2'], c=df_test['y_test'], cmap='rainbow')
+  
+  print('OCSVM')
+  #nu = 0.15
+  #nu = 0.0007
+  nu = 0.008
+  one_class_svm = OneClassSVM(nu = nu, kernel = 'rbf', gamma = 'auto').fit(embeddings)
+
+  return one_class_svm
+
+def eval_OCSVM(one_class_svm):
+  labels, embeddings =  embedding_phase(dataloaders, "test")
+
+  reducer = umap.UMAP()
+  embedding = reducer.fit_transform(embeddings)
+  embedding.shape
+
+  print('save results')
+  plt.scatter(embedding[:, 0], embedding[:, 1],c=[sns.color_palette()[x] for x in labels])
+  plt.gca().set_aspect('equal', 'datalim')
+  plt.title('UMAP projection', fontsize=24)
+  plt.savefig('umap.jpg')
+
+  prediction = one_class_svm.predict(embeddings)
+  prediction = [1 if i==-1 else 0 for i in prediction]
+  print(classification_report(labels, prediction))
+
+  plt.scatter(embedding[:, 0], embedding[:, 1],c=[sns.color_palette()[x] for x in prediction])
+  plt.gca().set_aspect('equal', 'datalim')
+  plt.title('OCSVM UMAP projection', fontsize=24)
+  plt.savefig('ocsvm.jpg')
+
+  return labels, prediction
 
 
 
@@ -452,7 +556,7 @@ if __name__ == "__main__":
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
   argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
-  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=50)
+  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=30)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
   argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
@@ -468,7 +572,7 @@ if __name__ == "__main__":
   if args.ensamble:
     args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), str(args.subset)])
   else:
-    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'noaugval'])
+    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'noaugval', '512', 'unbalanced'])
 
   print(f"Model: {args.model} | Epochs: {args.epoch_number} | Batch: {args.batch_size} | Optimizer: {args.optimizer} | Criterion: {args.criterion} | Learning rate: {args.lr}")
   
@@ -477,8 +581,11 @@ if __name__ == "__main__":
     random.seed(args.random)
   
   # Create the dataset object
-  dataset = CovAbDabDataset(os.path.join(args.input, 'abdb_dataset.csv'))
-  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug.csv')
+  dataset = CovAbDabDataset(os.path.join(args.input, 'abdb_dataset_noaug.csv'))
+  #dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug_gm.csv')
+  #dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+
+  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train.csv')
   dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
   
 
@@ -489,12 +596,15 @@ if __name__ == "__main__":
   nn_train = 0.8
   save_path = os.path.join(args.input, 'checkpoints') 
 
+  #train_data, test_data = controlled_split(dataset, dataset.labels, fraction=nn_train, subset = 0, proportion=0.5)
+
   if (args.ensamble):
     subset = args.subset
     train_data, test_data = controlled_split(dataset, dataset.labels, fraction=nn_train, subset = subset, proportion=0.5)
   else:
-    train_data, test_data = stratified_split_augontest(dataset1, dataset.labels, fraction=nn_train, proportion=0.5)
+    #train_data, test_data = stratified_split_augontest(dataset1, dataset.labels, fraction=nn_train, proportion=0.5)
     #train_data, test_data = stratified_split(dataset1, dataset2, dataset1.labels, dataset2.labels, fraction=nn_train, proportion=0.5)
+    train_data, test_data = stratified_split1(dataset1, dataset2, dataset1.labels, dataset2.labels, train_size = 10000, tot = True)
     
 
   # Save Dataset or Dataloader for later evaluation
@@ -532,14 +642,20 @@ if __name__ == "__main__":
   #if model_name == 'rcnn':
   #  hidden_size = 256
   #  output_size = 2
-  model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model) 
+  
+  model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model)
+
+  #model = BaselineOne(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model) 
 
   #if model == None:
   #  raise Exception('Unable to initialize model \'{model}\''.format(model_name))
 
   # Define criterion, optimizer and lr scheduler
   if args.criterion == 'Crossentropy':
-    criterion = torch.nn.CrossEntropyLoss().to(device) #TODO
+    weights = [1111/1111, 1111/160] #[ 1 / number of instances for each class]
+    class_weights = torch.FloatTensor(weights).cuda()
+    criterion = torch.nn.CrossEntropyLoss(weight=class_weights).to(device) 
+    #criterion = torch.nn.CrossEntropyLoss().to(device) 
   else:
     criterion = torch.nn.BCELoss().to(device)
 
@@ -564,3 +680,17 @@ if __name__ == "__main__":
   )
 
   print("\n ## Training DONE ")
+
+  '''one_class_svm = train_OCSVM(model, dataloaders)
+  labels, predictions = eval_OCSVM(one_class_svm)
+
+  confusion_matrix = metrics.confusion_matrix(labels, predictions)
+  cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [False, True])
+  cm_display.plot()
+  plt.show()
+  #plt.matshow(confusion_matrix)
+  #plt.title('Confusion Matrix')
+  #plt.colorbar()
+  #plt.ylabel('True Label')
+  #plt.xlabel('Predicated Label')
+  plt.savefig('confusion_matrix.jpg')'''
