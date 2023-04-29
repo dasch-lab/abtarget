@@ -325,7 +325,7 @@ if __name__ == "__main__":
   #dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug.csv')
 
   dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train.csv')
-  dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+  dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
   
   
 
@@ -378,7 +378,7 @@ if __name__ == "__main__":
   
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
 
-  checkpoint = torch.load('/disk1/abtarget/checkpoints/protbert/single/protbert_50_16_Adam_Crossentropy_True_noaugval_accuracy_F1_256_best_f1')
+  checkpoint = torch.load('/disk1/abtarget/checkpoints/protbert/single/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_best_accuracy')
   model.load_state_dict(checkpoint['model_state_dict'])
   optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
   epoch = checkpoint['epoch']

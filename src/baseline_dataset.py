@@ -206,6 +206,7 @@ class CovAbDabDataset(Dataset):
 
         row = self._data.iloc[idx]
         return {
+            "name": row["name"],
             "VH": row["VH"],
             "VL": row["VL"],
             #"target": self._align[row["organism"]],

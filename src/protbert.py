@@ -163,7 +163,7 @@ class Baseline(nn.Module):
         
         projection = nn.Sequential(
             nn.Linear(self.embedding_length * 2, self.embedding_length),
-            #nn.BatchNorm1d(self.embedding_length//2),
+            #nn.BatchNorm1d(self.embedding_length),
             #nn.SELU()
             nn.LeakyReLU(),
             #nn.GELU(),
@@ -176,7 +176,7 @@ class Baseline(nn.Module):
         self.projection = projection.to(device)
         #classification_dim = min([_.out_features for _ in projection.modules() if isinstance(_, nn.Linear)])
         # assert classification_dim == 512
-        classification_dim = self.embedding_length #// 2
+        classification_dim = self.embedding_length
         print(f"Classification_dim: {classification_dim}")
 
         # binary classification head

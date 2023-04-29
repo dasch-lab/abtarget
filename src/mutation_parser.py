@@ -93,16 +93,17 @@ if __name__ == '__main__':
     #filepath = '/disk1/abtarget/nohup_test08Mar23.out'
     #data = parse_file(filepath)
 
-    traindf = split_n('/disk1/abtarget/dataset/abdb_dataset_noaug.csv', 100)
+    #traindf = split_n('/disk1/abtarget/dataset/abdb_dataset_noaug.csv', 100)
+    traindf = pd.read_csv('/disk1/abtarget/dataset/new_split/train.csv', sep=",")
 
     results = parse_nohup('/disk1/abtarget/dataset/split/nohup_test08Mar23.out')
     #a = [name.split('.')[0].split('_')[0] for name in traindf['name']]
     name = pd.DataFrame([name.split('.')[0].split('_')[0] for name in traindf['name']], columns = ['name'])
     df2 = results.groupby(['target','model']).apply(concat_rows).reset_index(drop=True)
-    #df2 = df2[df2['name'].isin(name['name']).dropna()]
+    df2 = df2[df2['name'].isin(name['name']).dropna()]
     #df3 = df2[df2['name'].isin(name['name']).dropna()]
     #df4 = df2[~df2['name'].isin(name['name']).dropna()]
-    #df2.to_csv('/disk1/abtarget/dataset/split/train_aug.csv', mode = 'a', index = False, header = False)
+    df2.to_csv('/disk1/abtarget/dataset/new_split/train_aug.csv', mode = 'a', index = False, header=False)
     #df3.to_csv('/disk1/abtarget/dataset/split/aug_train.csv', index = False)
     #df4.to_csv('/disk1/abtarget/dataset/split/aug_test.csv', index = False)
     print('done')

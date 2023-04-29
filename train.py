@@ -5,6 +5,7 @@ import random
 import argparse
 import math
 from collections import defaultdict
+import sys
 
 import pandas as pd
 import torch
@@ -15,9 +16,9 @@ from src.baseline_dataset import MabMultiStrainBinding, CovAbDabDataset
 from src.metrics import MCC
 from matplotlib import pyplot as plt
 
-from sklearn.svm import OneClassSVM
+from sklearn.svm import OneClassSVM, SVC
 from sklearn.metrics import classification_report
-random.seed(22)
+random.seed(42)
 import numpy as np
 from sklearn import metrics
 import umap
@@ -54,12 +55,15 @@ def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.util
 
     if tot:
       trainList = classData1[name]
+      if name == 1:
+        trainList = random.sample(classData1[name], 1161)
     else:
       if name == 0:
-        trainList = random.sample(classData1[name], 160)
+        trainList = random.sample(classData1[name], 210)
       else:
         trainList = classData1[name]
 
+    #trainList = classData1[name]
     testList = classData2[name]
     
     print(len(trainList))
@@ -91,6 +95,8 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, propo
   Split the dataset proportionally according to the sample label
   '''
 
+  print('here')
+
   # Get classes
   classList = list(set(labels))
   resultList = {
@@ -104,6 +110,8 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, propo
     # Get subsample of indexes for this class
     classData[name] = [ idx for idx, label in enumerate(labels) if label == name ]
 
+  print('here')
+
   # Get shorter element
   shorter_class = min(classData.items(), key=lambda x: len(x[1]))[0]
   if proportion:
@@ -114,14 +122,21 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, propo
 
       classData[name] = random.sample(classData[name], subset_size)
 
+  print('here')
+
   classStats = {
     'train': {},
     'test': {}
   }
+
+  print('here')
+
   for name in classList:
     train_size = round(len(classData[name]) * fraction)
     trainList = random.sample(classData[name], train_size)
     testList = [ idx for idx in classData[name] if idx not in trainList ]
+    print(len(trainList))
+    print(len(testList))
 
     # Update stats
     classStats['train'][name] = len(trainList)
@@ -131,12 +146,16 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, fraction, propo
     resultList['train'].extend(trainList)
     resultList['test'].extend(testList)
 
+  print('here') 
+
   # Shuffle index lists
   for key in resultList:
     random.shuffle(resultList[key])
     print('{0} dataset:'.format(key))
     for name in classList:
       print(' Class {0}: {1}'.format(name, classStats[key][name]))
+
+  print('here')
 
   # Construct the test and train datasets
   train_data = torch.utils.data.Subset(dataset, resultList['train'])
@@ -204,29 +223,32 @@ def stratified_split_augontest(dataset : torch.utils.data.Dataset, labels, fract
   return train_data, test_data
 
 
-def controlled_split(dataset : torch.utils.data.Dataset, labels, fraction, subset = 0, proportion=None):
+def controlled_split(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, subset, proportion, fraction):
 
   '''
   Split the dataset proportionally according to the sample label
   '''
+  print(subset)
 
   # Get classes
-  classList = list(set(labels))
+  classList = list(set(labels1))
   resultList = {
     'test': [],
     'train': []
   }
 
-  random.seed(22)
-  classData = {}
+  classData1 = {}
+  classData2 = {}
+
   for name in classList:
     # Get subsample of indexes for this class
-    classData[name] = [ idx for idx, label in enumerate(labels) if label == name ]
+    classData1[name] = [ idx for idx, label in enumerate(labels1) if label == name ]
+    classData2[name] = [ idx for idx, label in enumerate(labels2) if label == name ]
 
   # Get shorter element
-  shorter_class = min(classData.items(), key=lambda x: len(x[1]))[0]
+  shorter_class = min(classData1.items(), key=lambda x: len(x[1]))[0]
   if proportion:
-    subset_size = len(classData[shorter_class])
+    subset_size = len(classData1[shorter_class])
 
     '''for name in classList:
       if name == shorter_class:
@@ -244,14 +266,15 @@ def controlled_split(dataset : torch.utils.data.Dataset, labels, fraction, subse
   }
 
   for name in classList:
-    train_size = round(subset_size * fraction)
+    #train_size = round(subset_size * fraction)
+    train_size = round(subset_size)
     
     if name == shorter_class:
-      trainList = random.sample(classData[name], train_size)
-      testList = [ idx for idx in classData[name] if idx not in trainList ]
+      trainList = random.sample(classData1[name], train_size)
+      #testList = [ idx for idx in classData[name] if idx not in trainList ]
     else:
-      testList = random.sample(classData[name], len(classData[shorter_class]) - train_size)
-      trainList_tot = [ idx for idx in classData[name] if idx not in testList ]
+      #testList = random.sample(classData1[name], len(classData1[shorter_class]) - train_size)
+      trainList_tot = [ idx for idx in classData1[name]]
       random.shuffle(trainList_tot)
       step = int(2 * train_size/3)
 
@@ -264,6 +287,7 @@ def controlled_split(dataset : torch.utils.data.Dataset, labels, fraction, subse
           classDatasubset.append(trainList_tot[base:base+train_size])
 
       trainList =  classDatasubset[subset]
+      testList = classData2[name]
       
 
     # Update stats
@@ -282,16 +306,110 @@ def controlled_split(dataset : torch.utils.data.Dataset, labels, fraction, subse
       print(' Class {0}: {1}'.format(name, classStats[key][name]))
   
   # Construct the test and train datasets
-  train_data = torch.utils.data.Subset(dataset, resultList['train'])
-  test_data = torch.utils.data.Subset(dataset, resultList['test'])
+  train_data = torch.utils.data.Subset(dataset1, resultList['train'])
+  test_data = torch.utils.data.Subset(dataset2, resultList['test'])
 
       
   # Save validation split in a txt file
-  with open('/disk1/abtarget/dataset/split/test.txt','w') as file:
-    file.write("\n".join(str(item) for item in resultList['test']))
-    #data.write(str(dictionary))
+  #with open('/disk1/abtarget/dataset/split/test.txt','w') as file:
+  #  file.write("\n".join(str(item) for item in resultList['test']))
+  #  #data.write(str(dictionary))
 
   return train_data, test_data
+
+def controlled_split_kcross(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, subset, proportion, fraction):
+
+  '''
+  Split the dataset proportionally according to the sample label
+  '''
+
+  # Get classes
+  classList = list(set(labels1))
+  resultList = {
+    'test': [],
+    'train': []
+  }
+
+  classData1 = {}
+  classData2 = {}
+
+  for name in classList:
+    # Get subsample of indexes for this class
+    classData1[name] = [ idx for idx, label in enumerate(labels1) if label == name ]
+    classData2[name] = [ idx for idx, label in enumerate(labels2) if label == name ]
+
+  # Get shorter element
+  shorter_class = min(classData1.items(), key=lambda x: len(x[1]))[0]
+  if proportion:
+    subset_size = len(classData1[shorter_class])
+
+    '''for name in classList:
+      if name == shorter_class:
+        continue
+
+      ## divide the class in subsets
+      step = int(2 * subset_size/3)
+      classDatasubset = [classData[name][base:base+subset_size-1] for base in range(0,len(classData[name]),step)]
+      #classData[name] = random.sample(classData[name], subset_size)
+      classData[name] =  classDatasubset[subset]'''
+
+  classStats = {
+    'train': {},
+    'test': {}
+  }
+
+  for name in classList:
+    #train_size = round(subset_size * fraction)
+    train_size = round(subset_size)
+    
+    if name == shorter_class:
+      trainList = random.sample(classData1[name], train_size)
+      #testList = [ idx for idx in classData[name] if idx not in trainList ]
+    else:
+      #testList = random.sample(classData1[name], len(classData1[shorter_class]) - train_size)
+      trainList_tot = [ idx for idx in classData1[name]]
+      random.shuffle(trainList_tot)
+      step = int(2 * train_size/3)
+
+      classDatasubset = []
+      for base in range(0,len(trainList_tot),step):
+        if base+train_size > len(trainList_tot):
+          classDatasubset.append(trainList_tot[base:])
+          break
+        else:
+          classDatasubset.append(trainList_tot[base:base+train_size])
+
+      trainList =  classDatasubset[subset]
+      testList = classData2[name]
+      
+
+    # Update stats
+    classStats['train'][name] = len(trainList)
+    classStats['test'][name] = len(testList)
+
+    # Concatenate indexes
+    resultList['train'].extend(trainList)
+    resultList['test'].extend(testList)
+
+  # Shuffle index lists
+  for key in resultList:
+    random.shuffle(resultList[key])
+    print('{0} dataset:'.format(key))
+    for name in classList:
+      print(' Class {0}: {1}'.format(name, classStats[key][name]))
+  
+  # Construct the test and train datasets
+  train_data = torch.utils.data.Subset(dataset1, resultList['train'])
+  test_data = torch.utils.data.Subset(dataset2, resultList['test'])
+
+      
+  # Save validation split in a txt file
+  #with open('/disk1/abtarget/dataset/split/test.txt','w') as file:
+  #  file.write("\n".join(str(item) for item in resultList['test']))
+  #  #data.write(str(dictionary))
+
+  return train_data, test_data
+
 
 
 
@@ -380,6 +498,8 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
 
         # Deep copy the model & save checkpoint to file
         if phase == "test": 
+
+          name = ''
         
           if epoch_acc > best_acc:
 
@@ -391,13 +511,14 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
 
             best_f1 = epoch_f1
             best_model_wts = copy.deepcopy(model.state_dict())
-            name = '_best_f1'
+            name = '_best_f1' 
 
 
-          if args.ensamble:
-            save_path = os.path.join(save_folder, 'checkpoints', args.model, 'ensamble', str(subset))
+          if args.ensemble:
+            save_path = os.path.join(save_folder, 'checkpoints', args.model, 'ensemble', str(subset))
           else:
             save_path = os.path.join(save_folder, 'checkpoints', args.model, 'single')
+          
           if not os.path.exists(save_path):
             os.mkdir(save_path)
           
@@ -489,8 +610,8 @@ def embedding_phase(dataloaders, phase):
 
     if (count < 10000):
         print(count)
-        labels.append(np.squeeze(inputs['label'].cpu().numpy()))
-        embeddings.append(np.squeeze(model(inputs).cpu().numpy()))
+        labels.append(np.squeeze(inputs['label'].cpu().detach().numpy()))
+        embeddings.append(np.squeeze(model(inputs).cpu().detach().numpy()))
     else:
         break
     
@@ -515,10 +636,11 @@ def train_OCSVM(model, dataloaders):
   #plt.scatter(df_test['feature1'], df_test['feature2'], c=df_test['y_test'], cmap='rainbow')
   
   print('OCSVM')
-  #nu = 0.15
+  nu = 0.15
   #nu = 0.0007
-  nu = 0.008
-  one_class_svm = OneClassSVM(nu = nu, kernel = 'rbf', gamma = 'auto').fit(embeddings)
+  #nu = 0.5
+  #one_class_svm = OneClassSVM(nu = nu, kernel = 'poly', gamma = 'auto').fit(embeddings)
+  one_class_svm = SVC(kernel = 'rbf', class_weight={1: 6}).fit(embeddings, labels)
 
   return one_class_svm
 
@@ -556,23 +678,26 @@ if __name__ == "__main__":
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
   argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
-  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=30)
+  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=50)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
   argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
   argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='Adam')
   argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=3e-5)
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
-  argparser.add_argument('-en', '--ensamble', type=bool, help='Ensamble model', default= False)
+  argparser.add_argument('-en', '--ensemble', type=bool, help='Ensemble model', default= False)
   argparser.add_argument('-tr', '--pretrain', type=bool, help='Freeze encoder', default= True)
-  argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 3)
+  argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 7)
+
+    
 
   # Parse arguments
   args = argparser.parse_args()
-  if args.ensamble:
-    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), str(args.subset)])
+
+  if args.ensemble:
+    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'new_split', 'norep', str(args.subset)])
   else:
-    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'noaugval', '512', 'unbalanced'])
+    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'new_split', 'norep'])
 
   print(f"Model: {args.model} | Epochs: {args.epoch_number} | Batch: {args.batch_size} | Optimizer: {args.optimizer} | Criterion: {args.criterion} | Learning rate: {args.lr}")
   
@@ -581,12 +706,17 @@ if __name__ == "__main__":
     random.seed(args.random)
   
   # Create the dataset object
-  dataset = CovAbDabDataset(os.path.join(args.input, 'abdb_dataset_noaug.csv'))
+  #dataset = CovAbDabDataset(os.path.join(args.input, 'abdb_dataset_noaug.csv'))
   #dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug_gm.csv')
   #dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
 
-  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train.csv')
-  dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+  #dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train.csv')
+  #dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+
+  dataset =  CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train_norep.csv')
+
+  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv')
+  dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_val_norep.csv')
   
 
   if args.threads:
@@ -598,13 +728,16 @@ if __name__ == "__main__":
 
   #train_data, test_data = controlled_split(dataset, dataset.labels, fraction=nn_train, subset = 0, proportion=0.5)
 
-  if (args.ensamble):
+  if (args.ensemble):
     subset = args.subset
-    train_data, test_data = controlled_split(dataset, dataset.labels, fraction=nn_train, subset = subset, proportion=0.5)
+    print('here split')
+    train_data, test_data = controlled_split(dataset1, dataset2, dataset1.labels, dataset2.labels, fraction=nn_train, subset = subset, proportion=0.5)
   else:
     #train_data, test_data = stratified_split_augontest(dataset1, dataset.labels, fraction=nn_train, proportion=0.5)
     #train_data, test_data = stratified_split(dataset1, dataset2, dataset1.labels, dataset2.labels, fraction=nn_train, proportion=0.5)
-    train_data, test_data = stratified_split1(dataset1, dataset2, dataset1.labels, dataset2.labels, train_size = 10000, tot = True)
+    #train_data, test_data = stratified_split1(dataset1, dataset2, dataset1.labels, dataset2.labels, train_size = 10000, tot = True)
+    train_data, test_data = stratified_split(dataset, dataset.labels, fraction = 0.81, proportion = None)
+    print('Done')
     
 
   # Save Dataset or Dataloader for later evaluation
@@ -645,6 +778,7 @@ if __name__ == "__main__":
   
   model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model)
 
+
   #model = BaselineOne(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model) 
 
   #if model == None:
@@ -652,10 +786,11 @@ if __name__ == "__main__":
 
   # Define criterion, optimizer and lr scheduler
   if args.criterion == 'Crossentropy':
-    weights = [1111/1111, 1111/160] #[ 1 / number of instances for each class]
+    weights = [1, 2368/215] #[ 1 / number of instances for each class]
+    #weights = [1, 235508/1521]
     class_weights = torch.FloatTensor(weights).cuda()
     criterion = torch.nn.CrossEntropyLoss(weight=class_weights).to(device) 
-    #criterion = torch.nn.CrossEntropyLoss().to(device) 
+    criterion = torch.nn.CrossEntropyLoss().to(device) 
   else:
     criterion = torch.nn.BCELoss().to(device)
 
@@ -665,6 +800,14 @@ if __name__ == "__main__":
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
   
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
+
+  '''if args.pretrain:
+          #dir_checkpoint = ''
+          checkpoint = torch.load('/disk1/abtarget/checkpoints/protbert/single/protbert_10_16_Adam_Crossentropy_True_pretrain')
+          model.load_state_dict(checkpoint['model_state_dict'])
+          optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+          epoch1 = checkpoint['epoch']
+          loss1 = checkpoint['loss'] '''
 
   # Train model
   train_model(

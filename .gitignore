@@ -46,6 +46,8 @@ checkpoints/
 nohup_training/
 env/
 figures/
+umap/
+dataset/
 
 # Ignore subfolders inside dataset folder
 dataset/*/
