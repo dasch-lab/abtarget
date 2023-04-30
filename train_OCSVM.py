@@ -26,7 +26,7 @@ import seaborn as sns
 from sklearn.metrics import f1_score
 from torchmetrics.classification import BinaryF1Score
 
-def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, tot):
+def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, train_size, tot):
 
   '''
   Split the dataset proportionally according to the sample label
@@ -53,13 +53,10 @@ def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.util
   }
   for name in classList:
 
-    if tot:
-      trainList = classData1[name]
+    if name == 0:
+      trainList = random.sample(classData1[name], len(classData1[1]))
     else:
-      if name == 0:
-        trainList = random.sample(classData1[name], len(classData1[1]))
-      else:
-        trainList = classData1[name]
+      trainList = classData1[name]
 
     #trainList = classData1[name]
     testList = classData2[name]
@@ -598,6 +595,80 @@ def plot_train_test(train_list, test_list, title, label1, label2, level = None):
   # Save figure
   plt.savefig(image_save_path+'/'+title +'.png')
 
+def embedding_phase(dataloaders, phase):
+
+  print('embdedding phase')
+  labels = []
+  embeddings = []
+  target =  {'peptide | peptide | peptide':0, 'peptide | protein | protein':1, 'peptide | protein':2, 'protein':3, 'protein | peptide':4, 'protein | protein | protein | protein':5, 
+                  'protein | peptide | protein':6, 'protein | protein':7, 'protein | protein | protein':8, 'peptide | peptide':9, 'peptide':10, 'protein | protein | protein | peptide':11,
+                  'protein | protein | protein | protein | protein':12, 'protein | protein | peptide':13,'Hapten':14, 'carbohydrate':15, 'nucleic-acid':16, 'nucleic-acid | nucleic-acid | nucleic-acid':17, 'nucleic-acid | nucleic-acid':18}
+  
+
+
+  for count, inputs in enumerate(dataloaders[phase]):
+
+    labels.append(np.squeeze(inputs['label'].cpu().detach().numpy()))
+    #labels.append(target[inputs['label'].cpu().detach()])
+    embeddings.append(np.squeeze(model(inputs).cpu().detach().numpy()))
+    
+  
+  return labels, embeddings
+
+def train_OCSVM(model, dataloaders):
+  since = time.time()
+
+  # Epoch train and validation phase
+  model.eval()
+
+  labels, embeddings =  embedding_phase(dataloaders, "train")
+
+  #print('umap')
+  #reducer = umap.UMAP()
+  #embedding = reducer.fit_transform(embeddings)
+  #embedding.shape
+
+  #df_test = pd.DataFrame(embeddings, columns=['feature1', 'feature2'])
+  #df_test['y_test'] = labels
+  #plt.scatter(df_test['feature1'], df_test['feature2'], c=df_test['y_test'], cmap='rainbow')
+  
+  print('OCSVM')
+  #nu = 0.15
+  nu = 0.075
+  #nu = 0.5
+  print('Start One class')
+  one_class_svm = OneClassSVM(nu = nu, kernel = 'poly', gamma = 'auto').fit(embeddings)
+  #one_class_svm = SVC(kernel = 'poly', class_weight={1: 13}).fit(embeddings, labels)
+  print('One class finished')
+
+  return one_class_svm
+
+def eval_OCSVM(one_class_svm):
+  print('Start Eval - embedding')
+  labels, embeddings =  embedding_phase(dataloaders, "test")
+
+  reducer = umap.UMAP()
+  embedding = reducer.fit_transform(embeddings)
+  embedding.shape
+
+  print('save results')
+  plt.scatter(embedding[:, 0], embedding[:, 1],c=[sns.color_palette()[x] for x in labels])
+  plt.gca().set_aspect('equal', 'datalim')
+  plt.title('UMAP projection', fontsize=24)
+  plt.savefig('umap.jpg')
+
+  prediction = one_class_svm.predict(embeddings)
+  prediction = [1 if i==-1 else 0 for i in prediction]
+  print(classification_report(labels, prediction))
+
+  plt.scatter(embedding[:, 0], embedding[:, 1],c=[sns.color_palette()[x] for x in prediction])
+  plt.gca().set_aspect('equal', 'datalim')
+  plt.title('OCSVM UMAP projection', fontsize=24)
+  plt.savefig('ocsvm.jpg')
+
+  return labels, prediction
+
+
 
 if __name__ == "__main__":
 
@@ -606,9 +677,9 @@ if __name__ == "__main__":
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
-  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'antiberty')
-  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=100)
-  argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
+  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
+  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=50)
+  argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=1)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
   argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
   argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='Adam')
@@ -617,19 +688,16 @@ if __name__ == "__main__":
   argparser.add_argument('-en', '--ensemble', type=bool, help='Ensemble model', default= False)
   argparser.add_argument('-tr', '--pretrain', type=bool, help='Freeze encoder', default= True)
   argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 7)
-  argparser.add_argument('-tot', '--total', type=bool, help='Complete dataset', default= False)
 
     
 
   # Parse arguments
   args = argparser.parse_args()
+
   if args.ensemble:
-    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', str(args.subset)])
+    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'new_split', 'norep', str(args.subset)])
   else:
-    if args.total:
-      args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'tot'])
-    else:
-      args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep'])
+    args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', '7_2_1', 'norep', '512'])
 
   print(f"Model: {args.model} | Epochs: {args.epoch_number} | Batch: {args.batch_size} | Optimizer: {args.optimizer} | Criterion: {args.criterion} | Learning rate: {args.lr}")
   
@@ -638,8 +706,17 @@ if __name__ == "__main__":
     random.seed(args.random)
   
   # Create the dataset object
-  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv')
-  dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_val_norep.csv')
+  #dataset = CovAbDabDataset(os.path.join(args.input, 'abdb_dataset_noaug.csv'))
+  #dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug_gm.csv')
+  #dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+
+  #dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train.csv')
+  #dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+
+  dataset =  CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train_norep.csv')
+
+  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv')
+  dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
   
 
   if args.threads:
@@ -653,9 +730,13 @@ if __name__ == "__main__":
 
   if (args.ensemble):
     subset = args.subset
+    print('here split')
     train_data, test_data = controlled_split(dataset1, dataset2, dataset1.labels, dataset2.labels, fraction=nn_train, subset = subset, proportion=0.5)
   else:
-    train_data, test_data = stratified_split1(dataset1, dataset2, dataset1.labels, dataset2.labels, tot = args.total)
+    #train_data, test_data = stratified_split_augontest(dataset1, dataset.labels, fraction=nn_train, proportion=0.5)
+    #train_data, test_data = stratified_split(dataset1, dataset2, dataset1.labels, dataset2.labels, fraction=nn_train, proportion=0.5)
+    train_data, test_data = stratified_split1(dataset1, dataset2, dataset1.labels, dataset2.labels, train_size=10000, tot = True)
+    #train_data, test_data = stratified_split(dataset, dataset.labels, fraction = 0.81, proportion = None)
     print('Done')
     
 
@@ -692,20 +773,25 @@ if __name__ == "__main__":
   model = None
   model_name = args.model.lower()
   print(model_name)
+  #if model_name == 'rcnn':
+  #  hidden_size = 256
+  #  output_size = 2
   
-  model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model)
+  #model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model)
 
+
+  model = BaselineOne(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model) 
+
+  #if model == None:
+  #  raise Exception('Unable to initialize model \'{model}\''.format(model_name))
 
   # Define criterion, optimizer and lr scheduler
   if args.criterion == 'Crossentropy':
-    if args.total:
-      #weights = [1, 2910/251] #[ 1 / number of instances for each class]
-      #weights = [1, 2879/220] #[ 1 / number of instances for each class]
-      weights = [1, 2874/215]
-      class_weights = torch.FloatTensor(weights).cuda()
-      criterion = torch.nn.CrossEntropyLoss(weight=class_weights).to(device) 
-    else:
-      criterion = torch.nn.CrossEntropyLoss().to(device) 
+    #weights = [1, 2368/215] #[ 1 / number of instances for each class]
+    #weights = [1, 235508/1521]
+    #class_weights = torch.FloatTensor(weights).cuda()
+    #criterion = torch.nn.CrossEntropyLoss(weight=class_weights).to(device) 
+    criterion = torch.nn.CrossEntropyLoss().to(device) 
   else:
     criterion = torch.nn.BCELoss().to(device)
 
@@ -716,25 +802,30 @@ if __name__ == "__main__":
   
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
 
-  '''if args.pretrain:
-          #dir_checkpoint = ''
-          checkpoint = torch.load('/disk1/abtarget/checkpoints/protbert/single/protbert_10_16_Adam_Crossentropy_True_pretrain')
-          model.load_state_dict(checkpoint['model_state_dict'])
-          optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-          epoch1 = checkpoint['epoch']
-          loss1 = checkpoint['loss'] '''
+  one_class_svm = train_OCSVM(model, dataloaders)
+  labels, predictions = eval_OCSVM(one_class_svm)
 
-  # Train model
-  train_model(
-    model,
-    dataloaders,
-    criterion,
-    optimizer,
-    exp_lr_scheduler,
-    num_epochs=args.epoch_number,
-    save_folder=args.checkpoint,
-    batch_size=args.batch_size,
-    device=device
-  )
 
-  print("\n ## Training DONE ")
+
+  confusion_matrix = metrics.confusion_matrix(labels, predictions)
+  cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [False, True])
+  cm_display.plot()
+  plt.show()
+  #plt.matshow(confusion_matrix)
+  #plt.title('Confusion Matrix')
+  #plt.colorbar()
+  #plt.ylabel('True Label')
+  #plt.xlabel('Predicated Label')
+  plt.savefig('confusion_matrix.jpg')
+
+  precision = metrics.precision_score(labels, predictions)
+  recall = metrics.recall_score(labels, predictions)
+  f1 = metrics.f1_score(labels, predictions)
+  accuracy = metrics.accuracy_score(labels, predictions)
+  mcc = metrics.matthews_corrcoef(labels, predictions)
+
+  print('Precision: ', precision)
+  print('Recall: ', recall)
+  print('F1: ', f1)
+  print('Accuracy: ', accuracy)
+  print('MCC: ', mcc)

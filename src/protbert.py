@@ -3,6 +3,7 @@ from torch import nn
 from transformers import BertModel, BertTokenizer, logging, RobertaTokenizer, RobertaModel, Trainer, TrainingArguments
 from huggingface_hub import login
 #login()
+from antiberty import AntiBERTyRunner
 
 PRE_TRAINED_MODEL_NAME = "Rostlab/prot_bert_bfd"
 MAX_LEN = 512
@@ -100,11 +101,12 @@ class AntibertyEncoder(nn.Module):
         super().__init__()
 
         self.tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME, do_lower_case=False)
-        self.antiberty = BertModel.from_pretrained(get_weights()).to(device)
+        #self.antiberty = BertModel.from_pretrained(get_weights()).to(device)
+        self.antiberty = AntiBERTyRunner()
 
     def forward(self, x):
 
-        x = [ ' '.join(list(i)) for i in x ]
+        '''x = [ ' '.join(list(i)) for i in x ]
         x = self.tokenizer(
             x,
             truncation=True,
@@ -117,7 +119,17 @@ class AntibertyEncoder(nn.Module):
         ).to(device)
 
         x = self.antiberty(**x)
-        return torch.mean(x["last_hidden_state"], 1)
+        return torch.mean(x["last_hidden_state"], 1)'''
+
+        embeddings = self.antiberty.embed(x)
+        mean_emb = []
+
+        for el in embeddings:
+            mean_emb.append(torch.mean(el, 0))
+
+        x = torch.stack(mean_emb)
+
+        return x
 
     
 
@@ -147,6 +159,7 @@ class Baseline(nn.Module):
             self.encoder = AntibertaEncoder()
             self.embedding_length = MAX_LEN
         else:
+            print('Here')
             self.encoder = AntibertyEncoder()
             self.embedding_length = MAX_LEN
 
@@ -194,7 +207,9 @@ class Baseline(nn.Module):
         vl = x['VL']
         xvh = self.encoder(vh)
         xvl = self.encoder(vl)
+
         x = torch.cat((xvh, xvl), 1)
+        #x = torch.stack((xvh, xvl), 1)
         #x = torch.add(xvh, xvl)
 
         x = self.projection(x)
@@ -245,7 +260,7 @@ class BaselineOne(nn.Module):
         # Projection for the concatenated embeddings
         
         projection = nn.Sequential(
-            nn.Linear(self.embedding_length * 2, self.embedding_length),
+            nn.Linear(self.embedding_length * 2, self.embedding_length // 2),
             #nn.BatchNorm1d(self.embedding_length),
             #nn.SELU()
             nn.LeakyReLU(),
@@ -259,7 +274,7 @@ class BaselineOne(nn.Module):
         self.projection = projection.to(device)
         #classification_dim = min([_.out_features for _ in projection.modules() if isinstance(_, nn.Linear)])
         # assert classification_dim == 512
-        classification_dim = self.embedding_length #// 2
+        classification_dim = self.embedding_length // 2
         print(f"Classification_dim: {classification_dim}")
 
         # binary classification head

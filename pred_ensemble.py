@@ -295,15 +295,15 @@ def eval_model(model1, model2, model3, model4, model5, model6, model7, model8, m
     #mean_eval = 0 if sum(list_pred) / len(list_pred) <= 0.5 else 1
     pred.append(max_eval)
     if max_eval != labels:
-      misclassified.append([inputs['name'][0], labels.cpu().numpy()[0], max_eval])
-    else:
-      correctclass.append(inputs['name'][0])
+      misclassified.append([inputs['name'][0], inputs['target'][0], labels.cpu().numpy()[0], max_eval])
+    #else:
+    #  correctclass.append(inputs['name'][0])
 
-    if max_eval == labels and labels == 1:
-      correctclass.append(inputs['name'][0])
+    #if max_eval == labels and labels == 1:
+    #  correctclass.append(inputs['name'][0])
       #misclassified.append([inputs['name'][0], labels.cpu().numpy()[0], max_eval])
   
-  print(correctclass)
+  print(misclassified)
 
   
   confusion_matrix = metrics.confusion_matrix(np.asarray(origin), np.asarray(pred))
@@ -348,10 +348,9 @@ def plot_train_test(train_list, test_list, title, label1, label2, level = None):
   # Save figure
   plt.savefig(image_save_path+'/'+title +'.png')
 
-def model_initializer(checkpoint_path):
+def model_initializer(checkpoint_path, model_name):
   model = None
-  model_name = args.model.lower()
-  model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=True, model_name=args.model) 
+  model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=True, model_name=model_name) 
 
 
   if args.criterion == 'Crossentropy':
@@ -383,7 +382,7 @@ if __name__ == "__main__":
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
-  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
+  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'antiberty')
   argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=200)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=1)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
@@ -403,11 +402,11 @@ if __name__ == "__main__":
     random.seed(22)
   
   # Create the dataset object
-  dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/test.csv')
+  dataset = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv')
   #dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/aug_test.csv')
   #dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug.csv')
 
-  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/split/train.csv')
+  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv')
   dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
   #dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/Klebsiella_test.csv')
   #dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/abdb_dataset_protein_gm.csv')
@@ -445,14 +444,15 @@ if __name__ == "__main__":
     "test": val_loader
   }
 
+  model_name = args.model
   # Select model
-  model1 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/1/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_1')
+  '''model1 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/1/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_1')
   model2 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/2/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_2')
   model3 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/3/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_3')
   model4 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/4/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_4')
   model5 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/5/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_5')
   model6 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/6/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_6')
-  model7 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/7/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_7')
+  model7 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/0/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_0')
   model8 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/8/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_8')
   model9 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/9/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_9')
   model10 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/10/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_10')
@@ -464,7 +464,27 @@ if __name__ == "__main__":
   model16 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/16/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_16')
   model17 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/17/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_17')
   model18 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/18/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_18')
-  model19 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/19/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_19')
+  model19 = model_initializer('/disk1/abtarget/checkpoints/protbert/ensemble/19/protbert_50_16_Adam_Crossentropy_True_sabdab_new_split_norep_19')'''
+
+  model1 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/0/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_0_best_accuracy', model_name)
+  model2 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/1/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_1_best_accuracy', model_name)
+  model3 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/2/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_2_best_accuracy', model_name)
+  model4 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/3/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_3_best_accuracy', model_name)
+  model5 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/4/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_4_best_accuracy', model_name)
+  model6 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/5/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_5_best_accuracy', model_name)
+  model7 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/6/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_6_best_accuracy', model_name)
+  model8 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/7/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_7_best_accuracy', model_name)
+  model9 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/8/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_8_best_accuracy', model_name)
+  model10 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/10/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_10_best_accuracy', model_name)
+  model11 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/11/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_11_best_accuracy', model_name)
+  model12 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/12/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_12_best_accuracy', model_name)
+  model13 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/13/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_13_best_accuracy', model_name)
+  model14 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/14/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_14_best_accuracy', model_name)
+  model15 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/15/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_15_best_accuracy', model_name)
+  model16 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/16/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_16_best_accuracy', model_name)
+  model17 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/17/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_17_best_accuracy', model_name)
+  model18 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/18/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_18_best_accuracy', model_name)
+  model19 = model_initializer('/disk1/abtarget/checkpoints/antiberty/ensemble/19/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_19_best_accuracy', model_name)
 
   # Train model
   pred, org = eval_model(
@@ -474,6 +494,18 @@ if __name__ == "__main__":
 
   #df = pd.DataFrame(list(zip(name, pred, org)), columns=['Name','GT','Pred'])
   #df.to_csv('/disk1/abtarget/dataset/split/res_val.csv', index = False)
+
+  precision = metrics.precision_score(org, pred)
+  recall = metrics.recall_score(org, pred)
+  f1 = metrics.f1_score(org, pred)
+  accuracy = metrics.accuracy_score(org, pred)
+  mcc = metrics.matthews_corrcoef(org, pred)
+
+  print('Precision: ', precision)
+  print('Recall: ', recall)
+  print('F1: ', f1)
+  print('Accuracy: ', accuracy)
+  print('MCC: ', mcc)
 
 
 
