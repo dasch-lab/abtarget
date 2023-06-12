@@ -239,6 +239,7 @@ def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.util
 def eval_model(model, dataloaders):
   origin = []
   pred = []
+  misclassified =[]
   
   model.eval()
   for count, inputs in enumerate(dataloaders["test"]):
@@ -247,6 +248,10 @@ def eval_model(model, dataloaders):
     outputs = model(inputs)
     _, preds = torch.max(outputs, 1)
     pred.extend(preds.cpu().detach().numpy())
+    if preds.cpu().detach().numpy() != labels.cpu().detach().numpy():
+      misclassified.append([inputs['name'][0], inputs['target'][0], labels.cpu().numpy()[0], preds.cpu().detach().numpy()[0]])
+    
+  print(misclassified)
 
   confusion_matrix = metrics.confusion_matrix(np.asarray(origin), np.asarray(pred))
   cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [False, True])
@@ -302,7 +307,7 @@ if __name__ == "__main__":
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
   argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'antiberty')
   argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=200)
-  argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
+  argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=1)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
   argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
   argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='SGD')
@@ -320,11 +325,10 @@ if __name__ == "__main__":
     random.seed(22)
   
   # Create the dataset object
-  dataset = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train_0.8.csv')
   #dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/aug_test.csv')
   #dataset = CovAbDabDataset('/disk1/abtarget/dataset/split/train_aug.csv')
 
-  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train_0.8.csv')
+  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
   dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
   #dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/Klebsiella_test.csv')
   
@@ -379,7 +383,7 @@ if __name__ == "__main__":
   
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
 
-  checkpoint = torch.load('/disk1/abtarget/checkpoints/antiberty/single/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_tot_best_accuracy')
+  checkpoint = torch.load('/disk1/abtarget/checkpoints/antiberty/single/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_cross_4_no_weights_best_accuracy')
   model.load_state_dict(checkpoint['model_state_dict'])
   optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
   epoch = checkpoint['epoch']

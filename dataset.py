@@ -199,7 +199,7 @@ if __name__ == "__main__":
 
   df_dataset = pd.read_csv('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv')
 
-  tot_target = protein_list
+  '''tot_target = protein_list
   tot_target.extend(nonprotein_list)
   df_new_dataset = pd.DataFrame()
 
@@ -227,7 +227,80 @@ if __name__ == "__main__":
   plt.scatter(embedding[:, 0], embedding[:, 1],c=[sns.color_palette()[x] for x in labels])
   plt.gca().set_aspect('equal', 'datalim')
   plt.title('UMAP projection', fontsize=24)
-  plt.savefig('umap.jpg')
+  plt.savefig('umap.jpg')'''
+
+  '''l = [['6dc8', 'peptide', 0, 1, 'AntiMLP'], ['4rgo', 'protein', 0, 1, 'AntiMLP'], ['6a0z', 'protein', 0, 1, 'AntiMLP'], ['6i3z', 'protein | peptide', 0, 1, 'AntiMLP'], ['5esz', 'protein', 0, 1, 'AntiMLP'], 
+       ['6pxr', 'peptide', 0, 1, 'AntiMLP'], ['8dcy', 'protein', 0, 1, 'AntiMLP'], ['7vng', 'protein', 0, 1, 'AntiMLP'], ['3kdm', 'Hapten', 1, 0, 'AntiMLP'], ['43ca', 'Hapten', 1, 0, 'AntiMLP'], 
+       ['4hih', 'carbohydrate', 1, 0, 'AntiMLP'], ['2jb6', 'Hapten', 1, 0, 'AntiMLP'], ['6zec', 'carbohydrate', 1, 0, 'AntiMLP'], ['4jn2', 'Hapten', 1, 0, 'AntiMLP'], ['2a9n', 'Hapten', 1, 0, 'AntiMLP'], 
+       ['1uwg', 'Hapten', 1, 0, 'AntiMLP'], ['2jb5', 'Hapten', 1, 0, 'AntiMLP']]
+  
+  cross1 = [['6dc8', 'peptide', 0, 1, 'cross1'], ['6pxr', 'peptide', 0, 1, 'cross1'], ['2fbj', 'carbohydrate', 1, 0, 'cross1'], ['6nfn', 'Hapten', 1, 0, 'cross1'], ['5nbw', 'Hapten', 1, 0, 'cross1'], 
+            ['3kdm', 'Hapten', 1, 0, 'cross1'], ['43ca', 'Hapten', 1, 0, 'cross1'], ['3mug', 'carbohydrate', 1, 0, 'cross1'], ['4fz8', 'carbohydrate', 1, 0, 'cross1'], ['5dqd', 'carbohydrate', 1, 0, 'cross1'], 
+            ['5cp3', 'Hapten', 1, 0, 'cross1'], ['4hih', 'carbohydrate', 1, 0, 'cross1'], ['2jb6', 'Hapten', 1, 0, 'cross1'], ['6zec', 'carbohydrate', 1, 0, 'cross1'], ['4jn2', 'Hapten', 1, 0, 'cross1'], 
+            ['5bzw', 'carbohydrate', 1, 0, 'cross1'], ['2a9n', 'Hapten', 1, 0, 'cross1'], ['7u63', 'Hapten', 1, 0, 'cross1'], ['3cfd', 'Hapten', 1, 0, 'cross1'], ['2ykl', 'Hapten', 1, 0, 'cross1'], 
+            ['1ngp', 'Hapten', 1, 0, 'cross1'], ['1uwg', 'Hapten', 1, 0, 'cross1'], ['2ajv', 'Hapten', 1, 0, 'cross1'], ['2jb5', 'Hapten', 1, 0, 'cross1']]
+  
+  cross2 = [['6dc8', 'peptide', 0, 1, 'cross2'], ['6pxr', 'peptide', 0, 1, 'cross2'], ['2fbj', 'carbohydrate', 1, 0, 'cross2'], ['6nfn', 'Hapten', 1, 0, 'cross2'], ['5nbw', 'Hapten', 1, 0, 'cross2'],
+            ['3kdm', 'Hapten', 1, 0, 'cross2'], ['43ca', 'Hapten', 1, 0, 'cross2'], ['6uul', 'carbohydrate', 1, 0, 'cross2'], ['4fz8', 'carbohydrate', 1, 0, 'cross2'], ['5cp3', 'Hapten', 1, 0, 'cross2'], 
+            ['4hih', 'carbohydrate', 1, 0, 'cross2'], ['2jb6', 'Hapten', 1, 0, 'cross2'], ['6zec', 'carbohydrate', 1, 0, 'cross2'], ['4jn2', 'Hapten', 1, 0, 'cross2'], ['5bzw', 'carbohydrate', 1, 0, 'cross2'], 
+            ['2a9n', 'Hapten', 1, 0, 'cross2'], ['5xqw', 'Hapten', 1, 0, 'cross2'], ['1fl3', 'Hapten', 1, 0, 'cross2'], ['2mcp', 'Hapten', 1, 0, 'cross2'], ['7u63', 'Hapten', 1, 0, 'cross2'], 
+            ['3cfd', 'Hapten', 1, 0, 'cross2'], ['2ykl', 'Hapten', 1, 0, 'cross2'], ['1uwg', 'Hapten', 1, 0, 'cross2'], ['2ajv', 'Hapten', 1, 0, 'cross2'], ['2jb5', 'Hapten', 1, 0, 'cross2']]
+  
+  cross3 = [['6dc8', 'peptide', 0, 1, 'cross3'], ['6pxr', 'peptide', 0, 1, 'cross3'], ['2fbj', 'carbohydrate', 1, 0, 'cross3'], ['6nfn', 'Hapten', 1, 0, 'cross3'], ['5nbw', 'Hapten', 1, 0, 'cross3'], 
+            ['3kdm', 'Hapten', 1, 0, 'cross3'], ['4uin', 'Hapten', 1, 0, 'cross3'], ['43ca', 'Hapten', 1, 0, 'cross3'], ['6uul', 'carbohydrate', 1, 0, 'cross3'], ['4fz8', 'carbohydrate', 1, 0, 'cross3'], 
+            ['5cp3', 'Hapten', 1, 0, 'cross3'], ['4hih', 'carbohydrate', 1, 0, 'cross3'], ['2jb6', 'Hapten', 1, 0, 'cross3'], ['6zec', 'carbohydrate', 1, 0, 'cross3'], ['4jn2', 'Hapten', 1, 0, 'cross3'], 
+            ['5bzw', 'carbohydrate', 1, 0, 'cross3'], ['2a9n', 'Hapten', 1, 0, 'cross3'], ['1fl3', 'Hapten', 1, 0, 'cross3'], ['2mcp', 'Hapten', 1, 0, 'cross3'], ['7u63', 'Hapten', 1, 0, 'cross3'], 
+            ['3cfd', 'Hapten', 1, 0, 'cross3'], ['1ngp', 'Hapten', 1, 0, 'cross3'], ['1uwg', 'Hapten', 1, 0, 'cross3'], ['2ajv', 'Hapten', 1, 0, 'cross3'], ['2jb5', 'Hapten', 1, 0, 'cross3']]
+  
+  cross4 = [['6dc8', 'peptide', 0, 1, 'cross4'], ['6pxr', 'peptide', 0, 1, 'cross4'], ['2fbj', 'carbohydrate', 1, 0, 'cross4'], ['6nfn', 'Hapten', 1, 0, 'cross4'], ['5nbw', 'Hapten', 1, 0, 'cross4'], 
+            ['3kdm', 'Hapten', 1, 0, 'cross4'], ['4uin', 'Hapten', 1, 0, 'cross4'], ['43ca', 'Hapten', 1, 0, 'cross4'], ['6uul', 'carbohydrate', 1, 0, 'cross4'], ['4fz8', 'carbohydrate', 1, 0, 'cross4'], 
+            ['5dqd', 'carbohydrate', 1, 0, 'cross4'], ['5cp3', 'Hapten', 1, 0, 'cross4'], ['4hih', 'carbohydrate', 1, 0, 'cross4'], ['2jb6', 'Hapten', 1, 0, 'cross4'], ['6zec', 'carbohydrate', 1, 0, 'cross4'], 
+            ['4jn2', 'Hapten', 1, 0, 'cross4'], ['5bzw', 'carbohydrate', 1, 0, 'cross4'], ['2a9n', 'Hapten', 1, 0, 'cross4'], ['5xqw', 'Hapten', 1, 0, 'cross4'], ['1fl3', 'Hapten', 1, 0, 'cross4'], 
+            ['2mcp', 'Hapten', 1, 0, 'cross4'], ['7u63', 'Hapten', 1, 0, 'cross4'], ['3cfd', 'Hapten', 1, 0, 'cross4'], ['1ngp', 'Hapten', 1, 0, 'cross4'], ['1uwg', 'Hapten', 1, 0, 'cross4'], 
+            ['2ajv', 'Hapten', 1, 0, 'cross4'], ['2jb5', 'Hapten', 1, 0, 'cross4']]
+  
+  cross5 = [['6dc8', 'peptide', 0, 1, 'cross5'], ['6pxr', 'peptide', 0, 1, 'cross5'], ['2fbj', 'carbohydrate', 1, 0, 'cross5'], ['6nfn', 'Hapten', 1, 0, 'cross5'], ['5nbw', 'Hapten', 1, 0, 'cross5'], 
+            ['3kdm', 'Hapten', 1, 0, 'cross5'], ['43ca', 'Hapten', 1, 0, 'cross5'], ['6uul', 'carbohydrate', 1, 0, 'cross5'], ['4fz8', 'carbohydrate', 1, 0, 'cross5'], ['5cp3', 'Hapten', 1, 0, 'cross5'], 
+            ['4hih', 'carbohydrate', 1, 0, 'cross5'], ['2jb6', 'Hapten', 1, 0, 'cross5'], ['6zec', 'carbohydrate', 1, 0, 'cross5'], ['4jn2', 'Hapten', 1, 0, 'cross5'], ['5bzw', 'carbohydrate', 1, 0, 'cross5'], 
+            ['2a9n', 'Hapten', 1, 0, 'cross5'], ['5xqw', 'Hapten', 1, 0, 'cross5'], ['1fl3', 'Hapten', 1, 0, 'cross5'], ['2mcp', 'Hapten', 1, 0, 'cross5'], ['7u63', 'Hapten', 1, 0, 'cross5'], 
+            ['3cfd', 'Hapten', 1, 0, 'cross5'], ['1ngp', 'Hapten', 1, 0, 'cross5'], ['1uwg', 'Hapten', 1, 0, 'cross5'], ['2ajv', 'Hapten', 1, 0, 'cross5'], ['2jb5', 'Hapten', 1, 0, 'cross5']]
+  
+
+
+  df_l = pd.DataFrame(l, columns = ['pdb', 'target', 'true', 'predicted', 'model'])
+  df_cross1 = pd.DataFrame(cross1, columns = ['pdb', 'target', 'true', 'predicted', 'model'])
+  df_cross2 = pd.DataFrame(cross2, columns = ['pdb', 'target', 'true', 'predicted', 'model'])
+  df_cross3 = pd.DataFrame(cross3, columns = ['pdb', 'target', 'true', 'predicted', 'model'])
+  df_cross4 = pd.DataFrame(cross4, columns = ['pdb', 'target', 'true', 'predicted', 'model'])
+  df_cross5 = pd.DataFrame(cross5, columns = ['pdb', 'target', 'true', 'predicted', 'model'])
+
+  df_tot = df_l
+
+
+  df_tot = df_tot.append(df_cross1, ignore_index = True)
+  df_tot = df_tot.append(df_cross2, ignore_index = True)
+  df_tot = df_tot.append(df_cross3, ignore_index = True)
+  df_tot = df_tot.append(df_cross4, ignore_index = True)
+  df_tot = df_tot.append(df_cross5, ignore_index = True)
+
+  list_pdb = list(set(df_tot['pdb']))
+
+  #df_ordered = df_tot.groupby(by = ['pdb', 'target', 'true', 'predicted'])
+
+  #df_tot = df_tot.join(df_tot['pdb'].apply(lambda l: ~pd.Series({i:i for i in l}).isna()).fillna(False).astype(int))
+  df_tot = df_tot.groupby(['pdb', 'target','model']).size().unstack(fill_value=0).astype(int).rename_axis(None, axis=1).reset_index()
+  df_tot.to_excel("output.xlsx")'''
+
+  df_test = pd.read_csv('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_val_norep.csv', sep=',')
+  df_prtoein_test = df_test[df_test['label'] == 0]
+  df_nonprtoein_test = df_test[df_test['label'] == 1]
+  df_training = pd.read_csv('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv', sep=',')
+  df_prtoein_train = df_training[df_training['label'] == 0]
+  df_nonprtoein_train = df_training[df_training['label'] == 1]
+  filter_df(df_prtoein_train, df_nonprtoein_train, df_prtoein_test, df_nonprtoein_test)
+
+
+
 
 
   print('Done')

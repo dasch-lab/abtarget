@@ -48,9 +48,14 @@ env/
 figures/
 umap/
 dataset/
+docs/
 
 # Ignore subfolders inside dataset folder
 dataset/*/
 
 # Ignore cache
 cache/
+
+# Ignore files
+dataset.py
+XAI.py

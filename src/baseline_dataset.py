@@ -211,6 +211,7 @@ class CovAbDabDataset(Dataset):
             "VL": row["VL"],
             #"target": self._align[row["organism"]],
             "label": row["label"],
+            "target": row["target"],
         }
 
     """

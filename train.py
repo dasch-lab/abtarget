@@ -25,8 +25,10 @@ import umap
 import seaborn as sns
 from sklearn.metrics import f1_score
 from torchmetrics.classification import BinaryF1Score
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import balanced_accuracy_score
 
-def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, tot):
+def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, tot, repetition):
 
   '''
   Split the dataset proportionally according to the sample label
@@ -55,6 +57,10 @@ def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.util
 
     if tot:
       trainList = classData1[name]
+      if repetition:
+        if name == 1:
+          rap = len(classData1[0]) // len(classData1[1])
+          trainList = rap * classData1[name]
     else:
       if name == 0:
         trainList = random.sample(classData1[name], len(classData1[1]))
@@ -315,101 +321,32 @@ def controlled_split(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils
 
   return train_data, test_data
 
-def controlled_split_kcross(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, subset, proportion, fraction):
+def stratified_split_kcross(dataset1 : torch.utils.data.Dataset, labels, subset, proportion, fraction):
 
   '''
   Split the dataset proportionally according to the sample label
   '''
 
-  # Get classes
-  classList = list(set(labels1))
-  resultList = {
-    'test': [],
-    'train': []
-  }
+  idx = np.asarray([ind for ind in range(len(labels))])
+  print(idx.size)
+  labels = np.asarray(labels)
+  print(labels.size)
 
-  classData1 = {}
-  classData2 = {}
 
-  for name in classList:
-    # Get subsample of indexes for this class
-    classData1[name] = [ idx for idx, label in enumerate(labels1) if label == name ]
-    classData2[name] = [ idx for idx, label in enumerate(labels2) if label == name ]
+  kfold = StratifiedKFold(n_splits = 5, shuffle = True, random_state = 42)
 
-  # Get shorter element
-  shorter_class = min(classData1.items(), key=lambda x: len(x[1]))[0]
-  if proportion:
-    subset_size = len(classData1[shorter_class])
-
-    '''for name in classList:
-      if name == shorter_class:
-        continue
-
-      ## divide the class in subsets
-      step = int(2 * subset_size/3)
-      classDatasubset = [classData[name][base:base+subset_size-1] for base in range(0,len(classData[name]),step)]
-      #classData[name] = random.sample(classData[name], subset_size)
-      classData[name] =  classDatasubset[subset]'''
-
-  classStats = {
-    'train': {},
-    'test': {}
-  }
-
-  for name in classList:
-    #train_size = round(subset_size * fraction)
-    train_size = round(subset_size)
-    
-    if name == shorter_class:
-      trainList = random.sample(classData1[name], train_size)
-      #testList = [ idx for idx in classData[name] if idx not in trainList ]
-    else:
-      #testList = random.sample(classData1[name], len(classData1[shorter_class]) - train_size)
-      trainList_tot = [ idx for idx in classData1[name]]
-      random.shuffle(trainList_tot)
-      step = int(2 * train_size/3)
-
-      classDatasubset = []
-      for base in range(0,len(trainList_tot),step):
-        if base+train_size > len(trainList_tot):
-          classDatasubset.append(trainList_tot[base:])
-          break
-        else:
-          classDatasubset.append(trainList_tot[base:base+train_size])
-
-      trainList =  classDatasubset[subset]
-      testList = classData2[name]
-      
-
-    # Update stats
-    classStats['train'][name] = len(trainList)
-    classStats['test'][name] = len(testList)
-
-    # Concatenate indexes
-    resultList['train'].extend(trainList)
-    resultList['test'].extend(testList)
-
-  # Shuffle index lists
-  for key in resultList:
-    random.shuffle(resultList[key])
-    print('{0} dataset:'.format(key))
-    for name in classList:
-      print(' Class {0}: {1}'.format(name, classStats[key][name]))
+  for train_ix, test_ix in kfold.split(idx, labels):
+    train_X, test_X = idx[train_ix], idx[test_ix]
+    train_y, test_y = labels[train_ix], labels[test_ix]
+    train_0, train_1 = len(train_y[train_y==0]), len(train_y[train_y==1])
+    test_0, test_1 = len(test_y[test_y==0]), len(test_y[test_y==1])
+    print('>Train: 0=%d, 1=%d, Test: 0=%d, 1=%d' % (train_0, train_1, test_0, test_1))
   
-  # Construct the test and train datasets
-  train_data = torch.utils.data.Subset(dataset1, resultList['train'])
-  test_data = torch.utils.data.Subset(dataset2, resultList['test'])
+    # Construct the test and train datasets
+    train_data = torch.utils.data.Subset(dataset1, train_X)
+    test_data = torch.utils.data.Subset(dataset1, test_X)
 
-      
-  # Save validation split in a txt file
-  #with open('/disk1/abtarget/dataset/split/test.txt','w') as file:
-  #  file.write("\n".join(str(item) for item in resultList['test']))
-  #  #data.write(str(dictionary))
-
-  return train_data, test_data
-
-
-
+  return train_data, test_data 
 
 
 def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=1, save_folder=None, batch_size=8, device='cpu'):
@@ -440,6 +377,9 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
       else:
         model.eval()
 
+      actual = []
+      pred = []
+
       # Iterate over the Data
       running_loss = 0.0
       running_correct = 0
@@ -452,10 +392,12 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
       for count, inputs in enumerate(dataloaders[phase]):
 
         labels = inputs['label'].to(device)
+        actual.extend(labels.tolist())
         optimizer.zero_grad()
         with torch.set_grad_enabled(phase == "train"):
           outputs = model(inputs)
           _, preds = torch.max(outputs, 1)
+          pred.extend(preds.cpu().detach().numpy())
           one = torch.sum(preds).item()
           ones += one
           zeros += (args.batch_size - one)
@@ -474,8 +416,10 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
         if phase == "train":
           scheduler.step()
 
+        #weights = [zeros / dataset_size, ones / dataset_size]
         epoch_loss = running_loss / dataset_size
-        epoch_acc = running_correct.double() / dataset_size
+        #epoch_acc = running_correct.double() / dataset_size
+        epoch_acc = balanced_accuracy_score(actual, pred)
         mcc = mcc_score.update(preds, labels)
         #epoch_f1 = f1_score(labels.cpu().numpy(), preds.cpu().numpy())
         metric = BinaryF1Score().to(device)
@@ -607,7 +551,7 @@ if __name__ == "__main__":
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
   argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'antiberty')
-  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=100)
+  argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=50)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
   argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
@@ -616,8 +560,9 @@ if __name__ == "__main__":
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
   argparser.add_argument('-en', '--ensemble', type=bool, help='Ensemble model', default= False)
   argparser.add_argument('-tr', '--pretrain', type=bool, help='Freeze encoder', default= True)
-  argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 7)
+  argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 0)
   argparser.add_argument('-tot', '--total', type=bool, help='Complete dataset', default= False)
+  argparser.add_argument('-rep', '--repetition', type=bool, help='Repeat the non-protein class', default= False)
 
     
 
@@ -627,9 +572,9 @@ if __name__ == "__main__":
     args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', str(args.subset)])
   else:
     if args.total:
-      args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'tot'])
+      args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'tot', 'rep'])
     else:
-      args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep'])
+      args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'cross'])
 
   print(f"Model: {args.model} | Epochs: {args.epoch_number} | Batch: {args.batch_size} | Optimizer: {args.optimizer} | Criterion: {args.criterion} | Learning rate: {args.lr}")
   
@@ -638,7 +583,7 @@ if __name__ == "__main__":
     random.seed(args.random)
   
   # Create the dataset object
-  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv')
+  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_val_norep.csv')
   dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_val_norep.csv')
   
 
@@ -655,20 +600,11 @@ if __name__ == "__main__":
     subset = args.subset
     train_data, test_data = controlled_split(dataset1, dataset2, dataset1.labels, dataset2.labels, fraction=nn_train, subset = subset, proportion=0.5)
   else:
-    train_data, test_data = stratified_split1(dataset1, dataset2, dataset1.labels, dataset2.labels, tot = args.total)
+    #train_data, test_data = stratified_split1(dataset1, dataset2, dataset1.labels, dataset2.labels, tot = args.total, repetition = args.repetition)
+    subset = args.subset
+    train_data, test_data = stratified_split_kcross(dataset1, dataset1.labels, fraction=nn_train, subset = subset, proportion=0.5)
     print('Done')
-    
 
-  # Save Dataset or Dataloader for later evaluation
-  #save_dataset = True
-  #if save_dataset:
-  #  save_path = os.path.join(args.input, 'checkpoints')
-  #  if not os.path.exists(save_path):
-  #    os.mkdir(save_path)
-
-  # Store datasets
-  #  torch.save(train_data, os.path.join(save_path, 'train_data.pt'))
-  #  torch.save(test_data, os.path.join(save_path, 'test_data.pt'))
     
   # Train and Test Dataloaders - (Wrap data with appropriate data loaders)
   train_loader = torch.utils.data.DataLoader(
@@ -699,11 +635,15 @@ if __name__ == "__main__":
   # Define criterion, optimizer and lr scheduler
   if args.criterion == 'Crossentropy':
     if args.total:
-      #weights = [1, 2910/251] #[ 1 / number of instances for each class]
-      #weights = [1, 2879/220] #[ 1 / number of instances for each class]
-      weights = [1, 2874/215]
-      class_weights = torch.FloatTensor(weights).cuda()
-      criterion = torch.nn.CrossEntropyLoss(weight=class_weights).to(device) 
+      if args.repetition is False:
+        #weights = [1, 2910/251] #[ 1 / number of instances for each class]
+        #weights = [1, 2879/220] #[ 1 / number of instances for each class]
+        #weights = [1, 2874/215]
+        weights = [1, 2339/212]
+        class_weights = torch.FloatTensor(weights).cuda()
+        criterion = torch.nn.CrossEntropyLoss(weight=class_weights).to(device) 
+      else:
+        criterion = torch.nn.CrossEntropyLoss().to(device) 
     else:
       criterion = torch.nn.CrossEntropyLoss().to(device) 
   else:

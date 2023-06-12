@@ -5,6 +5,7 @@ import pandas as pd
 import csv
 import os
 import random
+import yaml
 random.seed(22)
 
 # opening a file
@@ -29,14 +30,14 @@ def parse_nohup(nohup_file):
         if 'Regression weights not found' in line:
             continue
 
-        if line.startswith('# S'):
+        if line.startswith('#\tS'):
             # target = [line.strip('# Sequence ')]
-            name = line.split('# Sequence ')[1].strip('\n')
+            name = line.split('#\tSequence\t')[1].strip('\n')
             target = name.split('_')[0]
             chain = name.split('_')[1]
             # continue
         elif line.startswith('##'):
-            model_name = [line.strip('## ').strip('\n')]
+            model_name = [line.strip('##\tModel\t').strip('\n').split(':')[1].strip('\t')]
         elif line.startswith('Gen'):
             generation = int(line.split(':')[0].strip('Gen '))
             mutation = line.split(':')[1].strip('\n')
@@ -94,16 +95,44 @@ if __name__ == '__main__':
     #data = parse_file(filepath)
 
     #traindf = split_n('/disk1/abtarget/dataset/abdb_dataset_noaug.csv', 100)
-    traindf = pd.read_csv('/disk1/abtarget/dataset/new_split/train.csv', sep=",")
+    traindf = pd.read_csv('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv', sep=",")
 
-    results = parse_nohup('/disk1/abtarget/dataset/split/nohup_test08Mar23.out')
+    results = parse_nohup('/disk1/abtarget/nohup_test03May23_sara.out')
+
     #a = [name.split('.')[0].split('_')[0] for name in traindf['name']]
-    name = pd.DataFrame([name.split('.')[0].split('_')[0] for name in traindf['name']], columns = ['name'])
+    #name = pd.DataFrame([name.split('.')[0].split('_')[0] for name in traindf['name']], columns = ['name'])
+
+    name = pd.DataFrame([name.split('.')[0].upper() for name in traindf['name']], columns = ['name'])
+
+    traindf['name'] = name
+
+    
     df2 = results.groupby(['target','model']).apply(concat_rows).reset_index(drop=True)
-    df2 = df2[df2['name'].isin(name['name']).dropna()]
+    #df2 = df2[df2['name'].isin(name['name']).dropna()]
     #df3 = df2[df2['name'].isin(name['name']).dropna()]
     #df4 = df2[~df2['name'].isin(name['name']).dropna()]
-    df2.to_csv('/disk1/abtarget/dataset/new_split/train_aug.csv', mode = 'a', index = False, header=False)
+    df2.to_csv('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep_aug.csv', mode = 'a', index = False, header=False)
+
+    '''df3 = traindf[traindf['label'] == 1]
+    df3 = df3[~df3['name'].isin(df2['name']).dropna()]
+    df4 = pd.DataFrame(columns=['name','seq'])
+    dict = {}
+    
+    for index, row in df3.iterrows():
+        name = row['name']
+        vh = row['VH']
+        vl = row['VL']
+        #df4.loc[len(df4)] = [name+'_H', vh]
+        #df4.loc[len(df4)] = [name+'_L', vl]
+        dict[name+'_H'] = vh
+        dict[name+'_L'] = vl
+        #print(df4)
+    
+    #file=open("sabdab_dataset.yml","w")
+    #yaml.dump(dict,file)
+    #file.close()
+
+    
     #df3.to_csv('/disk1/abtarget/dataset/split/aug_train.csv', index = False)
     #df4.to_csv('/disk1/abtarget/dataset/split/aug_test.csv', index = False)
-    print('done')
+    print('done')'''
