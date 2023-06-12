@@ -179,7 +179,7 @@ import pandas as pd
 
 from torch.utils.data import Dataset
 # from src import configs
-from src import fasta
+from altro import fasta
 
 
 class CovAbDabDataset(Dataset):

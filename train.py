@@ -550,7 +550,7 @@ if __name__ == "__main__":
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
-  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'antiberty')
+  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
   argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=50)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=16)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
@@ -561,7 +561,7 @@ if __name__ == "__main__":
   argparser.add_argument('-en', '--ensemble', type=bool, help='Ensemble model', default= False)
   argparser.add_argument('-tr', '--pretrain', type=bool, help='Freeze encoder', default= True)
   argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 0)
-  argparser.add_argument('-tot', '--total', type=bool, help='Complete dataset', default= False)
+  argparser.add_argument('-tot', '--total', type=bool, help='Complete dataset', default= True)
   argparser.add_argument('-rep', '--repetition', type=bool, help='Repeat the non-protein class', default= False)
 
     
@@ -572,7 +572,7 @@ if __name__ == "__main__":
     args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', str(args.subset)])
   else:
     if args.total:
-      args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'tot', 'rep'])
+      args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'tot', 'rep', 'aug'])
     else:
       args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'cross'])
 
@@ -583,7 +583,7 @@ if __name__ == "__main__":
     random.seed(args.random)
   
   # Create the dataset object
-  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_val_norep.csv')
+  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep_aug.csv')
   dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_val_norep.csv')
   
 
@@ -600,9 +600,9 @@ if __name__ == "__main__":
     subset = args.subset
     train_data, test_data = controlled_split(dataset1, dataset2, dataset1.labels, dataset2.labels, fraction=nn_train, subset = subset, proportion=0.5)
   else:
-    #train_data, test_data = stratified_split1(dataset1, dataset2, dataset1.labels, dataset2.labels, tot = args.total, repetition = args.repetition)
-    subset = args.subset
-    train_data, test_data = stratified_split_kcross(dataset1, dataset1.labels, fraction=nn_train, subset = subset, proportion=0.5)
+    train_data, test_data = stratified_split1(dataset1, dataset2, dataset1.labels, dataset2.labels, tot = args.total, repetition = args.repetition)
+    #subset = args.subset
+    #train_data, test_data = stratified_split_kcross(dataset1, dataset1.labels, fraction=nn_train, subset = subset, proportion=0.5)
     print('Done')
 
     
@@ -639,7 +639,8 @@ if __name__ == "__main__":
         #weights = [1, 2910/251] #[ 1 / number of instances for each class]
         #weights = [1, 2879/220] #[ 1 / number of instances for each class]
         #weights = [1, 2874/215]
-        weights = [1, 2339/212]
+        #weights = [1, 2339/212]
+        weights = [1, 2824/1530]
         class_weights = torch.FloatTensor(weights).cuda()
         criterion = torch.nn.CrossEntropyLoss(weight=class_weights).to(device) 
       else:

@@ -305,7 +305,7 @@ if __name__ == "__main__":
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
-  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'antiberty')
+  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
   argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=200)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=1)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
@@ -383,7 +383,7 @@ if __name__ == "__main__":
   
   exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
 
-  checkpoint = torch.load('/disk1/abtarget/checkpoints/antiberty/single/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_cross_4_no_weights_best_accuracy')
+  checkpoint = torch.load('/disk1/abtarget/checkpoints/protbert/single/protbert_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_tot_rep_aug_best_accuracy')
   model.load_state_dict(checkpoint['model_state_dict'])
   optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
   epoch = checkpoint['epoch']
