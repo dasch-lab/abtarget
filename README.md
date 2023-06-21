@@ -11,3 +11,4 @@ In this article, we explore the use of deep learning algorithms for identifying 
 * src/baseline_dataset.py: dataloader for csv file
 * src/pdb.py: pdb reader to extract the sequences from a pdb file
 * src/protbert.py: class for ProtBERT and AntiBERTy + MLP
+* src/metrics.py: script for MCC 
