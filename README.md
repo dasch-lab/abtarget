@@ -8,6 +8,6 @@ In this article, we explore the use of deep learning algorithms for identifying 
 * train_OCSVM.py: training of ProtBERT and AntiBERTy model using OCSVM
 * pred.py: inference on ProtBERT and AntiBERTy
 * pred_ensamble: inference using the ensamble models on ProtBERT and AntiBERty
-* src/baseline_dataset.py: dataloader for csv
-* src/pdb.py: pdb reader to extract the sequences from the pdb file
-* src/protbert.py: class for ProtBERT and AntiBERTy
+* src/baseline_dataset.py: dataloader for csv file
+* src/pdb.py: pdb reader to extract the sequences from a pdb file
+* src/protbert.py: class for ProtBERT and AntiBERTy + MLP
