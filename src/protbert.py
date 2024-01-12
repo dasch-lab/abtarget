@@ -145,7 +145,7 @@ class Baseline(nn.Module):
     def __init__(self, batch_size, device, nn_classes=2, freeze_bert=True, model_name = 'protbert'):
         super().__init__()
 
-        self.dropout = 0.8
+        self.dropout = 0.2
         #self.embedding_length = 1024
         #self.embedding_length = MAX_LEN
         self.batch_size = batch_size
@@ -178,11 +178,12 @@ class Baseline(nn.Module):
             nn.Linear(self.embedding_length * 2, self.embedding_length),
             #nn.BatchNorm1d(self.embedding_length),
             #nn.SELU()
+            #nn.Dropout(p=0.2),
             nn.LeakyReLU(),
             #nn.GELU(),
             #nn.LayerNorm(self.embedding_length),
             #nn.BatchNorm1d(self.embedding_length),
-            #nn.Dropout(p=0.4),
+            #nn.Dropout(p=0.2),
             #nn.ReLU(),
         )
     
@@ -255,12 +256,101 @@ class BaselineOne(nn.Module):
         
         self.freeze_bert = freeze_bert
         self.noise = GaussianNoise()
+    
+    def forward(self, x):
+
+        vh = x['VH']
+        vl = x['VL']
+        xvh = self.encoder(vh)
+        xvl = self.encoder(vl)
+        #x = torch.fmax(xvh, xvl, out=None)
+        x = torch.cat((xvh, xvl), 1)
+
+        return x
+    
+
+class BaselineVHVL(nn.Module):
+    """
+    # Schema
+    [BERT-VH]--|
+               |--[CONCAT]--[LayerNorm,Linear, Gelu]x2--> Classification (0/1) protein or non-protein
+    [BERT-VL]--|
+    # Note: criterion = torch.nn.CrossEntropyLoss()
+    """
+
+    def __init__(self, batch_size, device, nn_classes=2, freeze_bert=True, model_name = 'protbert', train_m = True):
+        super().__init__()
+
+        self.dropout = 0.8
+        #self.embedding_length = 1024
+        #self.embedding_length = MAX_LEN
+        self.batch_size = batch_size
+        self.device = device
+        self.train_m = train_m 
+
+
+        if model_name == 'protbert':
+            self.encoder = BertEncoder()
+            self.embedding_length = MAX_LEN*2
+        elif model_name == 'antiberta':
+            self.encoder = AntibertaEncoder()
+            self.embedding_length = MAX_LEN
+        else:
+            self.encoder = AntibertyEncoder()
+            self.embedding_length = MAX_LEN
+
+        
+        if freeze_bert:
+                for param in self.encoder.parameters():
+                    param.requires_grad = False
+
+    
+    def forward(self, x):
+
+        vhl = x['VHVL']
+        try:
+            x = self.encoder(vhl)
+            return x
+        except:
+            print(x['name'])
+        #x = torch.fmax(xvh, xvl, out=None)
+        #x = torch.cat((xvh, xvl), 1)
+
+        
+
+class MLP(nn.Module):
+    """
+    # Schema
+    [LayerNorm,Linear, Gelu]x2--> Classification (0/1) protein or non-protein
+    # Note: criterion = torch.nn.CrossEntropyLoss()
+    """
+
+    def __init__(self, batch_size, device, nn_classes=2, freeze_bert=True, model_name = 'protbert', train_m = True):
+        super().__init__()
+
+        self.dropout = 0.8
+        #self.embedding_length = 1024
+        #self.embedding_length = MAX_LEN
+        self.batch_size = batch_size
+        self.device = device
+        self.train_m = train_m 
+
+
+        if model_name == 'protbert':
+            self.encoder = BertEncoder()
+            self.embedding_length = MAX_LEN*2
+        elif model_name == 'antiberta':
+            self.encoder = AntibertaEncoder()
+            self.embedding_length = MAX_LEN
+        else:
+            self.encoder = AntibertyEncoder()
+            self.embedding_length = MAX_LEN
 
 
         # Projection for the concatenated embeddings
         
         projection = nn.Sequential(
-            nn.Linear(self.embedding_length * 2, self.embedding_length // 2),
+            nn.Linear(self.embedding_length *2, self.embedding_length // 2),
             #nn.BatchNorm1d(self.embedding_length),
             #nn.SELU()
             nn.LeakyReLU(),
@@ -287,16 +377,75 @@ class BaselineOne(nn.Module):
 
     
     def forward(self, x):
+        x = self.projection(x)
+        x = self.head(x)
 
-        vh = x['VH']
-        vl = x['VL']
-        xvh = self.encoder(vh)
-        xvl = self.encoder(vl)
-        x = torch.fmax(xvh, xvl, out=None)
-        x = torch.cat((xvh, xvl), 1)
+        return x
+    
 
-        return xvh
+class MLP2(nn.Module):
+    """
+    # Schema
+    [LayerNorm,Linear, Gelu]x2--> Classification (0/1) protein or non-protein
+    # Note: criterion = torch.nn.CrossEntropyLoss()
+    """
 
+    def __init__(self, batch_size, device, nn_classes=2, freeze_bert=True, model_name = 'protbert', train_m = True):
+        super().__init__()
+
+        self.dropout = 0.8
+        #self.embedding_length = 1024
+        #self.embedding_length = MAX_LEN
+        self.batch_size = batch_size
+        self.device = device
+        self.train_m = train_m 
+
+
+        if model_name == 'protbert':
+            self.encoder = BertEncoder()
+            self.embedding_length = MAX_LEN*2
+        elif model_name == 'antiberta':
+            self.encoder = AntibertaEncoder()
+            self.embedding_length = MAX_LEN
+        else:
+            self.encoder = AntibertyEncoder()
+            self.embedding_length = MAX_LEN
+
+
+        # Projection for the concatenated embeddings
+        
+        projection = nn.Sequential(
+            nn.Linear(self.embedding_length, self.embedding_length // 2),
+            #nn.BatchNorm1d(self.embedding_length),
+            #nn.SELU()
+            nn.LeakyReLU(),
+            #nn.GELU(),
+            #nn.LayerNorm(self.embedding_length),
+            #nn.BatchNorm1d(self.embedding_length),
+            #nn.Dropout(p=0.4),
+            #nn.ReLU(),
+        )
+    
+        self.projection = projection.to(device)
+        #classification_dim = min([_.out_features for _ in projection.modules() if isinstance(_, nn.Linear)])
+        # assert classification_dim == 512
+        classification_dim = self.embedding_length // 2
+        print(f"Classification_dim: {classification_dim}")
+
+        # binary classification head
+        head = nn.Sequential(
+            nn.Linear(classification_dim, nn_classes),
+        )
+    
+
+        self.head = head.to(device)
+
+    
+    def forward(self, x):
+        x = self.projection(x)
+        x = self.head(x)
+
+        return x
 
 '''if __name__ == "__main__":
     

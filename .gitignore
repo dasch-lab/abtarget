@@ -43,6 +43,7 @@ test_output/
 
 # Ignore folder
 checkpoints/
+checkpoints_old/
 nohup_training/
 env/
 figures/
@@ -50,6 +51,8 @@ umap/
 dataset/
 docs/
 altro/
+abodybuilder2/
+FvHallucinator/
 
 # Ignore subfolders inside dataset folder
 dataset/*/
