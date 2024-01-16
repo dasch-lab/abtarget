@@ -7,7 +7,6 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-env/
 bin/
 build/
 develop-eggs/
@@ -45,7 +44,6 @@ test_output/
 checkpoints/
 checkpoints_old/
 nohup_training/
-env/
 figures/
 umap/
 dataset/
