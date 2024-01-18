@@ -12,7 +12,7 @@ import torch
 from torch.utils.data import random_split
 
 from src.protbert import Baseline, BaselineOne, BaselineVHVL, MLP
-from src.baseline_dataset import MabMultiStrainBinding, CovAbDabDataset, SMOTEDataset, MyDataset
+from src.baseline_dataset import CovAbDabDataset, SMOTEDataset, MyDataset
 from src.metrics import MCC
 from matplotlib import pyplot as plt
 
@@ -31,7 +31,7 @@ from imblearn.over_sampling import SMOTE
 import warnings
 warnings.filterwarnings('ignore')
 
-def stratified_split(dataset : torch.utils.data.Dataset, labels, step, subset_size = 50, rep = False, tot = False):
+def stratified_split(dataset : torch.utils.data.Dataset, labels, step, hallucination, names = None, subset_size = 50, rep = False, tot = False):
 
   '''
   Split the dataset proportionally according to the sample label
@@ -63,17 +63,22 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, step, subset_si
   random.seed(step*4)
 
   for name in classList:
-    testList = random.sample(classData[name], subset_size)
-    train_val_List = [ idx for idx in classData[name] if idx not in testList]
-    valList = random.sample(train_val_List, subset_size)
-
-    if tot:
-      trainList = [idx for idx in train_val_List if idx not in valList]
-      if rep and name == 1:
-        trainList = random.sample(trainList*14, 2874)
+    if name == 1 and hallucination:
+      trainList, valList, testList = sample_hallucination(names, classData[name], subset_size)
+      trainList = random.sample(trainList*14, 2874)
     else:
-      if name == 0:
-        trainList = random.sample([idx for idx in train_val_List if idx not in valList], 215)
+
+      testList = random.sample(classData[name], subset_size)
+      train_val_List = [ idx for idx in classData[name] if idx not in testList]
+      valList = random.sample(train_val_List, subset_size)
+
+      if tot:
+        trainList = [idx for idx in train_val_List if idx not in valList]
+        if rep and name == 1:
+          trainList = random.sample(trainList*14, 2874)
+      else:
+        if name == 0:
+          trainList = random.sample([idx for idx in train_val_List if idx not in valList], 215)
 
     print(len(trainList))
     print(len(valList))
@@ -96,16 +101,36 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, step, subset_si
 
   return train_data, val_data, test_data
 
+def sample_hallucination(names, idx_list, subset_size):
+  id_name_dict = {}
+  names = [names[idx].lower() for idx in idx_list]
+  for id, name in zip(idx_list, names):
+    if name in id_name_dict:
+      id_name_dict[name].append(id)
+    else:
+      id_name_dict[name] = [id]
+
+  sample_names = random.sample(list(id_name_dict.keys()), subset_size*2)
+  test_list = sample_without_aug(sample_names[:subset_size], id_name_dict)
+  val_list = sample_without_aug(sample_names[subset_size:], id_name_dict)
+  train_list = []
+  train_list.extend(value for values in id_name_dict.values() for value in values)
+
+  return train_list, test_list, val_list
+
+def sample_without_aug(sample_names, id_name_dict):
+  list_set = []
+  for name in sample_names:
+    idx = id_name_dict[name]
+    list_set.append(idx[0])
+    id_name_dict.pop(name, None)
+  return list_set
+
 def embedding_phase(dataloaders, phase):
 
   print('embdedding phase')
   labels = []
   embeddings = []
-  target =  {'peptide | peptide | peptide':0, 'peptide | protein | protein':1, 'peptide | protein':2, 'protein':3, 'protein | peptide':4, 'protein | protein | protein | protein':5, 
-                  'protein | peptide | protein':6, 'protein | protein':7, 'protein | protein | protein':8, 'peptide | peptide':9, 'peptide':10, 'protein | protein | protein | peptide':11,
-                  'protein | protein | protein | protein | protein':12, 'protein | protein | peptide':13,'Hapten':14, 'carbohydrate':15, 'nucleic-acid':16, 'nucleic-acid | nucleic-acid | nucleic-acid':17, 'nucleic-acid | nucleic-acid':18}
-  
-
 
   for count, inputs in enumerate(dataloaders[phase]):
 
@@ -225,11 +250,11 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
               best_model_wts = copy.deepcopy(model.state_dict())
               name = '_best_accuracy'
 
-            elif epoch_f1 > best_f1:
+            '''elif epoch_f1 > best_f1:
 
               best_f1 = epoch_f1
               best_model_wts = copy.deepcopy(model.state_dict())
-              name = '_best_f1' 
+              name = '_best_f1' '''
 
 
             if args.ensemble:
@@ -262,7 +287,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
       except:
         print('error')
 
-  # Store checkpoint
+  '''# Store checkpoint
   
   checkpoint_path = os.path.join(save_path, 'epoch_{0}'.format(epoch+1))
 
@@ -272,7 +297,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
     "optimizer_state_dict": optimizer.state_dict(),
     "loss": loss,
     "batch_size": batch_size,
-  }, checkpoint_path)
+  }, checkpoint_path)'''
 
   time_elapsed = time.time() - since
   print('Training complete in {h}:{m}:{s}'.format(
@@ -378,7 +403,8 @@ if __name__ == "__main__":
   argparser.add_argument('-tot', '--total', type=bool, help='Complete dataset', default = True)
   argparser.add_argument('-rep', '--repetition', type=bool, help='Repeat the non-protein class', default= False)
   argparser.add_argument('-aug', '--augmentation', type=bool, help='Augmentation of the non-protein class', default= True)
-  argparser.add_argument('-smote', '--smote', type=bool, help='SMOTE augmentation', default= True)
+  argparser.add_argument('-smote', '--smote', type=bool, help='SMOTE augmentation', default= False)
+  argparser.add_argument('-h', '--hallucination', type=bool, help='hallucination augmentation', default= True)
 
   precision = []
   recall = []
@@ -397,7 +423,7 @@ if __name__ == "__main__":
       args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', str(args.subset)])
     else:
       if args.total:
-        args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'bootstrap', 'smote', str(i)])
+        args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'bootstrap', 'hallucination'])
       else:
         args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'single', str(i)])
 
@@ -416,6 +442,8 @@ if __name__ == "__main__":
         dataset = SMOTEDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_protbert_embeddings_SMOTE.csv')
       else:
         exit()
+    elif args.hallucination:
+      dataset = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_hallucination.csv')
     else:
       dataset = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv')
     
@@ -431,17 +459,13 @@ if __name__ == "__main__":
 
     if (args.ensemble):
       subset = args.subset
-      train_data, val_data, test_data = stratified_split(dataset, dataset.labels,  step = i, subset_size=50, rep = args.repetition, tot = args.total)
+      train_data, val_data, test_data = stratified_split(dataset, labels = dataset.labels, hallucination = args.hallucination, step = i, subset_size=50, rep = args.repetition, tot = args.total)
     elif(args.smote):
-      train_data, val_data, test_data = stratified_split(dataset, dataset.labels,  step = i, subset_size=50, rep = args.repetition, tot = args.total)
-      #embeddings_train = dataset.X[train_data.indices]
-      #labels_train = dataset.label[train_data.indices]
-
-      # Assuming embeddings are stored under the key "X" in each sample
+      train_data, val_data, test_data = stratified_split(dataset, labels = dataset.labels, hallucination = args.hallucination, step = i, subset_size=50, rep = args.repetition, tot = args.total)
+      
       embeddings_train = torch.stack([sample["X"] for i, sample in enumerate(train_data) if i in train_data.indices])
       labels_train = torch.stack([sample["label"] for i, sample in enumerate(train_data) if i in train_data.indices])
 
-      
       oversample = SMOTE()
       embeddings_train, labels_train = oversample.fit_resample(embeddings_train,labels_train)
       embeddings_train = torch.tensor(embeddings_train).clone().detach()
@@ -451,9 +475,11 @@ if __name__ == "__main__":
       resultList = {'train': []}
       resultList['train'] = [idx for idx, label in enumerate(labels_train) if label in classList]
       train_data = torch.utils.data.Subset(my_dataset, resultList['train'])
-
+    
+    elif(args.hallucination):
+      train_data, val_data, test_data = stratified_split(dataset, labels = dataset.labels, names = dataset.name, hallucination = args.hallucination, step = i, subset_size=50, rep = args.repetition, tot = args.total)
     else:
-      train_data, val_data, test_data = stratified_split(dataset, dataset.labels, step = i, subset_size=50, rep = args.repetition, tot = args.total)
+      train_data, val_data, test_data = stratified_split(dataset, labels = dataset.labels, hallucination = args.hallucination, step = i, subset_size=50, rep = args.repetition, tot = args.total)
 
       
     # Train and Test Dataloaders - (Wrap data with appropriate data loaders)
