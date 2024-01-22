@@ -23,7 +23,7 @@ warnings.filterwarnings('ignore')
 
 
 
-def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=1, save_folder=None, batch_size=8, device='cpu'):
+def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=1, save_folder=None, batch_size=8, device='cpu', save = True):
   since = time.time()
   best_model_wts = copy.deepcopy(model.state_dict())
   best_acc = 0.0
@@ -146,13 +146,14 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
               os.mkdir(save_path)
             
             checkpoint_path = os.path.join(save_path, args.save_name + name)
-            '''torch.save({
+            if save:
+              torch.save({
               "epoch": epoch,
               "model_state_dict": model.state_dict(),
               "optimizer_state_dict": optimizer.state_dict(),
               "loss": loss,
               "batch_size": batch_size,
-              }, checkpoint_path)'''
+              }, checkpoint_path)
 
         if phase == "train":
           train_loss.append(epoch_loss)
@@ -167,17 +168,18 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
       except:
         print('error')
 
-  '''# Store checkpoint
+  # Store checkpoint
   
   checkpoint_path = os.path.join(save_path, 'epoch_{0}'.format(epoch+1))
 
-  torch.save({
-    "epoch": epoch,
-    "model_state_dict": model.state_dict(),
-    "optimizer_state_dict": optimizer.state_dict(),
-    "loss": loss,
-    "batch_size": batch_size,
-  }, checkpoint_path)'''
+  if save:
+    torch.save({
+      "epoch": epoch,
+      "model_state_dict": model.state_dict(),
+      "optimizer_state_dict": optimizer.state_dict(),
+      "loss": loss,
+      "batch_size": batch_size,
+    }, checkpoint_path)
 
   time_elapsed = time.time() - since
   print('Training complete in {h}:{m}:{s}'.format(
@@ -277,6 +279,7 @@ if __name__ == "__main__":
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
   argparser.add_argument('-en', '--ensemble', type=bool, help='Ensemble model', default= False)
   argparser.add_argument('-tr', '--pretrain', type=bool, help='Freeze encoder', default= True)
+  argparser.add_argument('-s', '--save', type=bool, help='Save checkpoints', default= False)
   argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 0)
   argparser.add_argument('-tot', '--total', type=bool, help='Complete dataset', default = True)
   argparser.add_argument('-rep', '--repetition', type=bool, help='Repeat the non-protein class', default= False)
@@ -438,7 +441,8 @@ if __name__ == "__main__":
       num_epochs=args.epoch_number,
       save_folder=args.checkpoint,
       batch_size=args.batch_size,
-      device=device
+      device=device,
+      save = args.save
     )
 
     print("\n ## Training DONE ")
