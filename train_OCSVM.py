@@ -3,28 +3,25 @@ import time
 import copy
 import random
 import argparse
-import math
-from collections import defaultdict
-import sys
 
-import pandas as pd
 import torch
 from torch.utils.data import random_split
-
-from src.protbert import Baseline, BaselineOne
-from src.baseline_dataset import MabMultiStrainBinding, CovAbDabDataset
-from src.metrics import MCC
-from matplotlib import pyplot as plt
-
 from sklearn.svm import OneClassSVM, SVC
 from sklearn.metrics import classification_report
-random.seed(42)
 import numpy as np
 from sklearn import metrics
 import umap
 import seaborn as sns
 from sklearn.metrics import f1_score
 from torchmetrics.classification import BinaryF1Score
+
+from src.protbert import BaselineOne
+from src.baseline_dataset import CovAbDabDataset
+from src.metrics import MCC
+from matplotlib import pyplot as plt
+
+
+
 
 def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, labels1, labels2, train_size, tot):
 
@@ -70,13 +67,6 @@ def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.util
     # Concatenate indexes
     resultList['test'].extend(testList)
     resultList['train'].extend(trainList)
-
-  # Shuffle index lists
-  '''for key in resultList:
-    random.shuffle(resultList[key])
-    print('{0} dataset:'.format(key))
-    for name in classList:
-      print(' Class {0}: {1}'.format(name, classStats[key][name]))'''
       
 
   train_data = torch.utils.data.Subset(dataset1, resultList['train'])

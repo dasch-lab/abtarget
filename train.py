@@ -11,8 +11,8 @@ import pandas as pd
 import torch
 from torch.utils.data import random_split
 
-from src.protbert import Baseline, BaselineOne
-from src.baseline_dataset import MabMultiStrainBinding, CovAbDabDataset
+from src.protbert import Baseline
+from src.baseline_dataset import CovAbDabDataset
 from src.metrics import MCC
 from matplotlib import pyplot as plt
 
