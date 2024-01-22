@@ -5,20 +5,20 @@ import random
 import argparse
 
 import torch
-from torch.utils.data import random_split
 from sklearn.svm import OneClassSVM, SVC
 from sklearn.metrics import classification_report
 import numpy as np
 from sklearn import metrics
 import umap
 import seaborn as sns
-from sklearn.metrics import f1_score
 from torchmetrics.classification import BinaryF1Score
+from matplotlib import pyplot as plt
 
 from src.protbert import BaselineOne
 from src.baseline_dataset import CovAbDabDataset
 from src.metrics import MCC
-from matplotlib import pyplot as plt
+from src.training_eval import final_score_eval, confusion_matrix
+
 
 
 
@@ -729,17 +729,6 @@ if __name__ == "__main__":
     #train_data, test_data = stratified_split(dataset, dataset.labels, fraction = 0.81, proportion = None)
     print('Done')
     
-
-  # Save Dataset or Dataloader for later evaluation
-  #save_dataset = True
-  #if save_dataset:
-  #  save_path = os.path.join(args.input, 'checkpoints')
-  #  if not os.path.exists(save_path):
-  #    os.mkdir(save_path)
-
-  # Store datasets
-  #  torch.save(train_data, os.path.join(save_path, 'train_data.pt'))
-  #  torch.save(test_data, os.path.join(save_path, 'test_data.pt'))
     
   # Train and Test Dataloaders - (Wrap data with appropriate data loaders)
   train_loader = torch.utils.data.DataLoader(
@@ -763,24 +752,10 @@ if __name__ == "__main__":
   model = None
   model_name = args.model.lower()
   print(model_name)
-  #if model_name == 'rcnn':
-  #  hidden_size = 256
-  #  output_size = 2
-  
-  #model = Baseline(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model)
-
-
-  model = BaselineOne(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model) 
-
-  #if model == None:
-  #  raise Exception('Unable to initialize model \'{model}\''.format(model_name))
+  model = BaselineOne(args.batch_size, device, nn_classes=args.n_class, freeze_bert=args.pretrain, model_name=args.model)
 
   # Define criterion, optimizer and lr scheduler
   if args.criterion == 'Crossentropy':
-    #weights = [1, 2368/215] #[ 1 / number of instances for each class]
-    #weights = [1, 235508/1521]
-    #class_weights = torch.FloatTensor(weights).cuda()
-    #criterion = torch.nn.CrossEntropyLoss(weight=class_weights).to(device) 
     criterion = torch.nn.CrossEntropyLoss().to(device) 
   else:
     criterion = torch.nn.BCELoss().to(device)
@@ -795,27 +770,5 @@ if __name__ == "__main__":
   one_class_svm = train_OCSVM(model, dataloaders)
   labels, predictions = eval_OCSVM(one_class_svm)
 
-
-
-  confusion_matrix = metrics.confusion_matrix(labels, predictions)
-  cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [False, True])
-  cm_display.plot()
-  plt.show()
-  #plt.matshow(confusion_matrix)
-  #plt.title('Confusion Matrix')
-  #plt.colorbar()
-  #plt.ylabel('True Label')
-  #plt.xlabel('Predicated Label')
-  plt.savefig('confusion_matrix.jpg')
-
-  precision = metrics.precision_score(labels, predictions)
-  recall = metrics.recall_score(labels, predictions)
-  f1 = metrics.f1_score(labels, predictions)
-  accuracy = metrics.accuracy_score(labels, predictions)
-  mcc = metrics.matthews_corrcoef(labels, predictions)
-
-  print('Precision: ', precision)
-  print('Recall: ', recall)
-  print('F1: ', f1)
-  print('Accuracy: ', accuracy)
-  print('MCC: ', mcc)
+  confusion_matrix(labels, predictions)
+  final_score_eval(labels, predictions)

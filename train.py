@@ -674,14 +674,6 @@ if __name__ == "__main__":
   #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=1)
   scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
-  '''if args.pretrain:
-          #dir_checkpoint = ''
-          checkpoint = torch.load('/disk1/abtarget/checkpoints/protbert/single/protbert_10_16_Adam_Crossentropy_True_pretrain')
-          model.load_state_dict(checkpoint['model_state_dict'])
-          optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-          epoch1 = checkpoint['epoch']
-          loss1 = checkpoint['loss'] '''
-
   # Train model
   train_model(
     model,

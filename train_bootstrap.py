@@ -3,28 +3,16 @@ import time
 import copy
 import random
 import argparse
-import math
-from collections import defaultdict
-import sys
-
-import pandas as pd
 import torch
-from torch.utils.data import random_split
 
 from src.protbert import Baseline, MLP
 from src.baseline_dataset import CovAbDabDataset, SMOTEDataset, MyDataset
 from src.metrics import MCC
 from src.data_loading_split import stratified_split
-from matplotlib import pyplot as plt
 
-from sklearn.svm import OneClassSVM, SVC
-from sklearn.metrics import classification_report
-random.seed(42)
+from matplotlib import pyplot as plt
 import numpy as np
 from sklearn import metrics
-import umap
-import seaborn as sns
-from sklearn.metrics import f1_score
 from torchmetrics.classification import BinaryF1Score
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import balanced_accuracy_score
@@ -33,22 +21,6 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-
-def embedding_phase(dataloaders, phase):
-
-  print('embdedding phase')
-  labels = []
-  embeddings = []
-
-  for count, inputs in enumerate(dataloaders[phase]):
-
-    labels.append(np.squeeze(inputs['label'].cpu().detach().numpy()))
-    #labels.append(target[inputs['label'].cpu().detach()])
-    try:
-      embeddings.append(np.squeeze(model(inputs).cpu().detach().numpy()))
-      return labels, embeddings
-    except:
-      print('error')
 
 
 def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=1, save_folder=None, batch_size=8, device='cpu'):
@@ -220,8 +192,6 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
 
   plot_train_test(train_loss, test_loss, 'Loss', 'train', 'val')
   plot_train_test(train_acc, test_acc, 'Accuracy', 'train', 'val')
-  plot_train_test(train_zero_class, train_one_class, 'Train classes', 'zero', 'one', level = len(train_data))
-  plot_train_test(test_zero_class, test_one_class, 'Test classes', 'zero', 'one', level = len(test_data))
 
   return model, checkpoint_path
 
@@ -314,21 +284,31 @@ if __name__ == "__main__":
   argparser.add_argument('-smote', '--smote', type=bool, help='SMOTE augmentation', default= False)
   argparser.add_argument('-hal', '--hallucination', type=bool, help='FvHallucinator augmentation', default= True)
   argparser.add_argument('-esm', '--esm', type=bool, help='ESM augmentation', default= False)
-  argparser.add_argument('-double', '--double', type=bool, help='Double dataset', default= False)
+  argparser.add_argument('-d', '--double', type=bool, help='Double dataset', default= False)
+  argparser.add_argument('-b', '--bootstrap', type=bool, help='Bootstrap evaluation', default= True)
+  argparser.add_argument('-nb', '--number_bootstrap', type=int, help='Number of bootstraps', default= 20)
 
+  # Evaluation metrics
   precision = []
   recall = []
   f1 = []
   accuracy = []
   mcc = []
+  args = argparser.parse_args()
 
-    
-  for i in range(20):
+  # Check for bootstrap evaluation flag
+  if args.bootstrap:
+    num_b = args.number_bootstrap
+  else:
+    num_b = 0
+
+
+  for i in range(num_b):
 
     print(f"Subset {i}")
 
     # Parse arguments
-    args = argparser.parse_args()
+    
     if args.ensemble:
       args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', str(args.subset)])
     else:

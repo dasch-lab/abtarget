@@ -9,6 +9,23 @@ def model_initializer(checkpoint_path, model):
   model.load_state_dict(checkpoint['model_state_dict'])
   return model
 
+def embedding_phase(dataloaders, phase, model):
+
+  print('embdedding phase')
+  labels = []
+  embeddings = []
+
+  for count, inputs in enumerate(dataloaders[phase]):
+
+    labels.append(np.squeeze(inputs['label'].cpu().detach().numpy()))
+    #labels.append(target[inputs['label'].cpu().detach()])
+    try:
+      embeddings.append(np.squeeze(model(inputs).cpu().detach().numpy()))
+      return labels, embeddings
+    except:
+      print('error')
+
+# From pred before ensamble
 '''def eval_model1_model2(model1, model2, dataloaders, device):
   origin = []
   pred = []
@@ -28,6 +45,70 @@ def model_initializer(checkpoint_path, model):
       misclassified.append([inputs['name'][0], inputs['target'][0], labels.cpu().numpy()[0], preds.cpu().detach().numpy()[0]])
 
   return origin, pred'''
+
+# From bootstrap script
+'''
+def plot_train_test(train_list, test_list, title, label1, label2, level = None):
+  epochs = [i  for i in range(args.epoch_number)]
+  
+  fig, ax = plt.subplots(figsize = (5, 2.7), layout = 'constrained')
+  ax.plot(epochs, train_list, label = label1)
+  ax.plot(epochs, test_list, label = label2)
+
+  if level is not None:
+    ax.plot(epochs, [level]*args.epoch_number, label = 'max')
+    ax.plot(epochs, [level//2]*args.epoch_number, label = 'threshold')
+    ax.plot(epochs, [0]*args.epoch_number, label = 'min')
+    ax.set_ylabel('Classes')
+  else:
+    ax.set_ylabel(args.criterion)
+
+  ax.set_xlabel('Epoch')
+  #ax.set_ylabel(args.criterion)
+  ax.set_title(title)
+  ax.legend()
+
+  image_save_path = os.path.join(args.checkpoint,'figures',args.save_name)
+
+  if not os.path.exists(image_save_path):
+            os.mkdir(image_save_path)
+
+  # Save figure
+  plt.savefig(image_save_path+'/'+title +'.png')
+
+def eval_model(model, dataloaders):
+  origin = []
+  pred = []
+  misclassified =[]
+  
+  model.eval()
+  for count, inputs in enumerate(dataloaders["test"]):
+    labels = inputs['label'].to(device)
+    if args.smote:
+      inputs = inputs['X'].to(device)
+    origin.extend(labels.cpu().detach().numpy())
+    outputs = model(inputs)
+    _, preds = torch.max(outputs, 1)
+    pred.extend(preds.cpu().detach().numpy())
+    #if preds.cpu().detach().numpy() != labels.cpu().detach().numpy():
+    #  misclassified.append([inputs['name'][0], inputs['target'][0], labels.cpu().numpy()[0], preds.cpu().detach().numpy()[0]])
+    
+  #print(misclassified)
+
+  confusion_matrix = metrics.confusion_matrix(np.asarray(origin), np.asarray(pred))
+  cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [False, True])
+  cm_display.plot()
+  plt.show()
+  #plt.matshow(confusion_matrix)
+  #plt.title('Confusion Matrix')
+  #plt.colorbar()
+  #plt.ylabel('True Label')
+  #plt.xlabel('Predicated Label')
+  plt.savefig('confusion_matrix.jpg')
+
+
+  return origin, pred
+'''
 
 def eval_model1_model2(dataloaders, device, single = True, list_model1=None, list_model2 = None):
   origin = []
