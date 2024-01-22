@@ -29,6 +29,8 @@ if __name__ == "__main__":
   argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=3e-5)
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
   argparser.add_argument('-ens', '--ensemble', type=bool, help='Ensable models', default=False)
+  argparser.add_argument('-sin', '--one_encoder', type=bool, help='One encoder (ProtBERT or AntiBERTy)', default=False)
+
 
   # Parse arguments
   args = argparser.parse_args()
@@ -108,9 +110,11 @@ if __name__ == "__main__":
 
   # Train model
   org, pred = eval_model1_model2(
-    list_model1,
-    list_model2,
-    dataloaders
+    dataloaders = dataloaders,
+    device = device,
+    single = args.one_encoder,
+    list_model1 = list_model1,
+    list_model2 = list_model2
   )
 
   final_score_eval(pred, org)
