@@ -248,11 +248,17 @@ def eval_model1_model2(dataloaders, device, single = True, list_model1=None, lis
     list_pred = []
     for i in range(len(list_model1)):
       if single:
-        _, output = torch.max(list_model1[i](inputs), 1)
+        model = list_model1[i]
+        model.eval()
+        _, output = torch.max(model(inputs), 1)
         list_pred.append(output.cpu().numpy()[0])
       else:
-        output1 = list_model1[i](inputs)
-        output2 = list_model2[i](inputs)
+        model1 = list_model1[i]
+        model1.eval()
+        model2 = list_model2[i]
+        model2.eval()
+        output1 = model1(inputs)
+        output2 = model2(inputs)
         output = output1 + output2
         _, output = torch.max(output, 1)
         list_pred.append(output.cpu().numpy()[0])
@@ -271,6 +277,9 @@ def eval_model1_model2_smote(model1, model2, dataloader1, dataloader2, device):
   origin = []
   pred = []
   misclassified = []
+
+  model1.eval()
+  model2.eval()
   
   for count, (input1, input2) in enumerate(zip(dataloader1["test"], dataloader2["test"])):
     labels = input1['label'].to(device)
