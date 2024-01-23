@@ -39,7 +39,7 @@ def embedding_phase(dataloaders, phase, model):
     except:
       print('error')
 
-def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=1, save_folder=None, batch_size=8, device='cpu', save = True, smote = False, ensemble = False, model_name = 'antiberty', save_name = '', subset = 0, epoch_number = 0, path = ''):
+def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=1, save_folder=None, batch_size=8, device='cpu', save = True, smote = False, ensemble = False, model_name = 'antiberty', save_name = '', subset = 0, epoch_number = 0, path = '', training_plot = False):
   since = time.time()
   best_model_wts = copy.deepcopy(model.state_dict())
   best_acc = 0.0
@@ -187,8 +187,9 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
   # Load best model weights
   model.load_state_dict(best_model_wts)
 
-  plot_train_test(train_loss, test_loss, 'Loss', 'train', 'val', epoch_number, criterion, path, 'Loss' )
-  plot_train_test(train_acc, test_acc, 'Accuracy', 'train', 'val', epoch_number, criterion, path, 'Accuracy')
+  if training_plot:
+    plot_train_test(train_loss, test_loss, 'Loss', 'train', 'val', epoch_number, criterion, path, 'Loss' )
+    plot_train_test(train_acc, test_acc, 'Accuracy', 'train', 'val', epoch_number, criterion, path, 'Accuracy')
 
   return model, checkpoint_path
 
@@ -219,6 +220,21 @@ def plot_train_test(train_list, test_list, title, label1, label2, epoch_number, 
 
   # Save figure
   plt.savefig(image_save_path+'/'+title +'.png')
+
+def eval_model(model, dataloaders, device, smote=False):
+  origin = []
+  pred = []
+  
+  model.eval()
+  for count, inputs in enumerate(dataloaders["test"]):
+    labels = inputs['label'].to(device)
+    if smote:
+      inputs = inputs['X'].to(device)
+    origin.extend(labels.cpu().detach().numpy())
+    outputs = model(inputs)
+    _, preds = torch.max(outputs, 1)
+    pred.extend(preds.cpu().detach().numpy())
+  return origin, pred
 
 
 def eval_model1_model2(dataloaders, device, single = True, list_model1=None, list_model2 = None):

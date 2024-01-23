@@ -9,7 +9,7 @@ from src.protbert import Baseline, MLP
 from src.baseline_dataset import CovAbDabDataset, SMOTEDataset, MyDataset
 from src.metrics import MCC
 from src.data_loading_split import stratified_split
-from src.training_eval import train_model
+from src.training_eval import train_model, eval_model
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -18,22 +18,6 @@ from imblearn.over_sampling import SMOTE
 import warnings
 warnings.filterwarnings('ignore')
 
-
-
-def eval_model(model, dataloaders):
-  origin = []
-  pred = []
-  
-  model.eval()
-  for count, inputs in enumerate(dataloaders["test"]):
-    labels = inputs['label'].to(device)
-    if args.smote:
-      inputs = inputs['X'].to(device)
-    origin.extend(labels.cpu().detach().numpy())
-    outputs = model(inputs)
-    _, preds = torch.max(outputs, 1)
-    pred.extend(preds.cpu().detach().numpy())
-  return origin, pred
 
 def Average(lst): 
     return sum(lst) / len(lst) 
@@ -56,15 +40,15 @@ if __name__ == "__main__":
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
   argparser.add_argument('-en', '--ensemble', type=bool, help='Ensemble model', default= False)
   argparser.add_argument('-tr', '--pretrain', type=bool, help='Freeze encoder', default= True)
-  argparser.add_argument('-s', '--save', type=bool, help='Save checkpoints', default= False)
+  argparser.add_argument('-s', '--save', type=bool, help='Save checkpoints', default= True)
   argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 0)
   argparser.add_argument('-tot', '--total', type=bool, help='Complete dataset', default = True)
   argparser.add_argument('-rep', '--repetition', type=bool, help='Repeat the non-protein class', default= False)
   argparser.add_argument('-aug', '--augmentation', type=bool, help='Augmentation of the non-protein class', default= True)
   argparser.add_argument('-smote', '--smote', type=bool, help='SMOTE augmentation', default= False)
-  argparser.add_argument('-hal', '--hallucination', type=bool, help='FvHallucinator augmentation', default= True)
-  argparser.add_argument('-esm', '--esm', type=bool, help='ESM augmentation', default= False)
-  argparser.add_argument('-d', '--double', type=bool, help='Double dataset', default= False)
+  argparser.add_argument('-hal', '--hallucination', type=bool, help='FvHallucinator augmentation', default= False)
+  argparser.add_argument('-esm', '--esm', type=bool, help='ESM augmentation', default= True)
+  argparser.add_argument('-d', '--double', type=bool, help='Double dataset', default= True)
   argparser.add_argument('-b', '--bootstrap', type=bool, help='Bootstrap evaluation', default= True)
   argparser.add_argument('-nb', '--number_bootstrap', type=int, help='Number of bootstraps', default= 20)
 
@@ -80,7 +64,7 @@ if __name__ == "__main__":
   if args.bootstrap:
     num_b = args.number_bootstrap
   else:
-    num_b = 0
+    num_b = 1
 
 
   for i in range(num_b):
@@ -93,7 +77,16 @@ if __name__ == "__main__":
       args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', str(args.subset)])
     else:
       if args.total:
-        args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'bootstrap', 'esm2'])
+        if args.hallucination:
+          args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'bootstrap', 'hallucination'])
+        elif args.esm:
+          args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'bootstrap', 'esm2'])
+        elif args.repetition:
+          args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'bootstrap', 'oversampling'])
+        elif args.smote:
+          args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'smote', 'oversampling'])
+        else:
+          args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'smote', 'imbalanced'])
       else:
         args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'single', str(i)])
 
@@ -222,9 +215,8 @@ if __name__ == "__main__":
       ensemble = args.ensemble,
       model_name = args.model,
       save_name = args.save_name,
-      subset = subset,
-      epoch_number = args.epoch_number,
-      path = args.path
+      subset = i,
+      epoch_number = args.epoch_number
     )
 
     print("\n ## Training DONE ")
@@ -234,7 +226,9 @@ if __name__ == "__main__":
 
     pred, org = eval_model(
     model,
-    dataloaders
+    dataloaders,
+    device,
+    args.smote
     )
 
     precision.append(metrics.precision_score(org, pred))
