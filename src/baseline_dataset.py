@@ -6,7 +6,6 @@ x = [vh_for_bert_encoding , vl_for_bert_encoding]
 import pandas as pd
 import torch
 from torch.utils.data import random_split
-import pandas as pd
 from torch.utils.data import Dataset
 from altro import fasta
 

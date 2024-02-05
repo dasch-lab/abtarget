@@ -20,7 +20,6 @@ def load_data(dataset : torch.utils.data.Dataset, labels, name_sub):
     classData[name] = [ idx for idx, label in enumerate(labels) if label == name ]
 
   classStats = {
-    'train':{},
     name_sub: {}
   }
   for name in classList:
@@ -90,6 +89,8 @@ def stratified_split(dataset : torch.utils.data.Dataset, labels, step, hallucina
       else:
         if name == 0:
           trainList = random.sample([idx for idx in train_val_List if idx not in valList], min_len)
+        else:
+          trainList = [idx for idx in train_val_List if idx not in valList]
 
     print(len(trainList))
     print(len(valList))

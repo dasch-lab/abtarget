@@ -234,6 +234,10 @@ def eval_model(model, dataloaders, device, smote=False):
     outputs = model(inputs)
     _, preds = torch.max(outputs, 1)
     pred.extend(preds.cpu().detach().numpy())
+    print ('Original:')
+    print(origin)
+    print('Pred:')
+    print(pred)
   return origin, pred
 
 

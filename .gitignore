@@ -51,6 +51,7 @@ docs/
 altro/
 abodybuilder2/
 FvHallucinator/
+img/
 
 # Ignore subfolders inside dataset folder
 dataset/*/
