@@ -19,9 +19,6 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def Average(lst): 
-    return sum(lst) / len(lst) 
-
 
 if __name__ == "__main__":
 
@@ -49,7 +46,7 @@ if __name__ == "__main__":
   argparser.add_argument('-hal', '--hallucination', type=bool, help='FvHallucinator augmentation', default= False)
   argparser.add_argument('-esm', '--esm', type=bool, help='ESM augmentation', default= False)
   argparser.add_argument('-d', '--double', type=bool, help='Double dataset', default= False)
-  argparser.add_argument('-b', '--bootstrap', type=bool, help='Bootstrap evaluation', default= False)
+  argparser.add_argument('-b', '--bootstrap', type=bool, help='Bootstrap evaluation', default= True)
   argparser.add_argument('-nb', '--number_bootstrap', type=int, help='Number of bootstraps', default= 20)
 
   # Evaluation metrics
@@ -88,7 +85,7 @@ if __name__ == "__main__":
         else:
           args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'smote', 'imbalanced'])
       else:
-        args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'single', str(i)])
+        args.save_name = '_'.join([args.model, str(args.epoch_number), str(args.batch_size), args.optimizer, args.criterion, str(args.pretrain), 'sabdab', 'old_split', 'norep', 'single'])
 
 
     print(f"Model: {args.model} | Epochs: {args.epoch_number} | Batch: {args.batch_size} | Optimizer: {args.optimizer} | Criterion: {args.criterion} | Learning rate: {args.lr}")

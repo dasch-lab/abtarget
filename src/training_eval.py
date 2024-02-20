@@ -137,7 +137,8 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
               name = '_best_accuracy'
 
             if ensemble:
-              save_path = os.path.join(save_folder, 'checkpoints', model_name, 'ensemble', str(subset))
+              #save_path = os.path.join(save_folder, 'checkpoints', model_name, 'ensemble', str(subset))
+              save_path = os.path.join(save_folder)
             else:
               save_path = os.path.join(save_folder, 'checkpoints', model_name, 'single')
             
@@ -234,10 +235,6 @@ def eval_model(model, dataloaders, device, smote=False):
     outputs = model(inputs)
     _, preds = torch.max(outputs, 1)
     pred.extend(preds.cpu().detach().numpy())
-    print ('Original:')
-    print(origin)
-    print('Pred:')
-    print(pred)
   return origin, pred
 
 
@@ -294,8 +291,8 @@ def eval_model1_model2_smote(model1, model2, dataloader1, dataloader2, device):
     _, preds = torch.max(outputs, 1)
     pred.extend(preds.cpu().detach().numpy())
     
-    if preds.cpu().detach().numpy() != labels.cpu().detach().numpy():
-      misclassified.append([input1['name'][0], input1['target'][0], labels.cpu().numpy()[0], preds.cpu().detach().numpy()[0]])
+    #if preds.cpu().detach().numpy() != labels.cpu().detach().numpy():
+    #  misclassified.append([input1['name'][0], input1['target'][0], labels.cpu().numpy()[0], preds.cpu().detach().numpy()[0]])
   return origin, pred
 
 
@@ -318,3 +315,4 @@ def final_score_eval(org, pred):
   print('F1: ', f1)
   print('Accuracy: ', accuracy)
   print('MCC: ', mcc)
+  return precision, recall, f1, accuracy, mcc
