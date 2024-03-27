@@ -17,7 +17,27 @@ from src.protbert import BaselineOne
 from src.baseline_dataset import CovAbDabDataset
 from src.metrics import MCC
 from src.training_eval import final_score_eval, confusion_matrix
-from src.training_eval import embedding_phase
+
+def embedding_phase(dataloaders, phase, model):
+
+  print('embdedding phase')
+  labels = []
+  embeddings = []
+
+  '''target =  {'peptide | peptide | peptide':0, 'peptide | protein | protein':1, 'peptide | protein':2, 'protein':3, 'protein | peptide':4, 'protein | protein | protein | protein':5, 
+                  'protein | peptide | protein':6, 'protein | protein':7, 'protein | protein | protein':8, 'peptide | peptide':9, 'peptide':10, 'protein | protein | protein | peptide':11,
+                  'protein | protein | protein | protein | protein':12, 'protein | protein | peptide':13,'Hapten':14, 'carbohydrate':15, 'nucleic-acid':16, 'nucleic-acid | nucleic-acid | nucleic-acid':17, 'nucleic-acid | nucleic-acid':18}'''
+  
+
+  for count, inputs in enumerate(dataloaders[phase]):
+
+    labels.append(np.squeeze(inputs['label'].cpu().detach().numpy()))
+    try:
+      embeddings.append(np.squeeze(model(inputs).cpu().detach().numpy()))
+    except:
+      print('error')
+  
+  return labels, embeddings
 
 
 
@@ -50,10 +70,16 @@ def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.util
   }
   for name in classList:
 
-    if name == 0:
-      trainList = random.sample(classData1[name], len(classData1[1]))
+    if tot:
+      if name == 0:
+        trainList = random.sample(classData1[name], 2824)
+      else:
+        trainList = classData1[name]
     else:
-      trainList = classData1[name]
+      if name == 0:
+        trainList = random.sample(classData1[name], len(classData1[1]))
+      else:
+        trainList = classData1[name]
 
     #trainList = classData1[name]
     testList = classData2[name]
@@ -282,10 +308,10 @@ def train_OCSVM(model, dataloaders):
   
   print('OCSVM')
   #nu = 0.15
-  nu = 0.075
+  nu = 0.07
   #nu = 0.5
   print('Start One class')
-  one_class_svm = OneClassSVM(nu = nu, kernel = 'poly', gamma = 'auto').fit(embeddings)
+  one_class_svm = OneClassSVM(nu = nu, kernel = 'rbf', gamma = 'auto').fit(embeddings)
   print('One class finished')
 
   return one_class_svm
@@ -293,7 +319,7 @@ def train_OCSVM(model, dataloaders):
 
 def eval_OCSVM(one_class_svm):
   print('Start Eval - embedding')
-  labels, embeddings =  embedding_phase(dataloaders, "test")
+  labels, embeddings =  embedding_phase(dataloaders, "test", model)
 
   reducer = umap.UMAP()
   embedding = reducer.fit_transform(embeddings)
@@ -325,7 +351,7 @@ if __name__ == "__main__":
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
-  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
+  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'antiberty')
   argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=50)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=1)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
@@ -354,9 +380,9 @@ if __name__ == "__main__":
     random.seed(args.random)
   
   # Create the dataset object
-  dataset =  CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train_norep.csv')
+  #dataset =  CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train_norep.csv')
 
-  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv')
+  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv')
   dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
   
 

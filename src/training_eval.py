@@ -11,7 +11,7 @@ from sklearn import metrics
 import numpy as np
 
 from src.metrics import MCC
-
+from captum.attr import IntegratedGradients
 
 
 def model_initializer(checkpoint_path, model):
@@ -316,3 +316,6 @@ def final_score_eval(org, pred):
   print('Accuracy: ', accuracy)
   print('MCC: ', mcc)
   return precision, recall, f1, accuracy, mcc
+
+def integrated_gradient():
+  pass

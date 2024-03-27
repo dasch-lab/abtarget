@@ -25,7 +25,7 @@ if __name__ == "__main__":
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=1)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
   argparser.add_argument('-c', '--n_class', type=int, help='Number of classes', default=2)
-  argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='SGD')
+  argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='Adam')
   argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=3e-5)
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
   argparser.add_argument('-ens', '--ensemble', type=bool, help='Ensable models', default=False)
@@ -42,7 +42,7 @@ if __name__ == "__main__":
   if args.threads:
     torch.set_num_threads(args.threads)
   
-  train_data, test_data = load_data(dataset, dataset.labels, name_sub = 'test')
+  test_data = load_data(dataset, dataset.labels, name_sub = 'test')
   
   # Data Loader
   test_loader = torch.utils.data.DataLoader(
@@ -103,8 +103,10 @@ if __name__ == "__main__":
   else:
     model1 = Baseline(args.batch_size, device, args.n_class, freeze_bert=True, model_name = 'protbert') 
     model2 = Baseline(args.batch_size, device, args.n_class, freeze_bert=True, model_name = 'antiberty')
-    model1 = model_initializer('/disk1/abtarget/checkpoints_old/protbert/single/protbert_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_tot_rep_aug', model1)
-    model2 = model_initializer('/disk1/abtarget/checkpoints/antiberty/single/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_tot_rep_aug', model2)
+    #model1 = model_initializer('/disk1/abtarget/checkpoints_old/protbert/single/protbert_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_tot_rep_aug', model1)
+    #model2 = model_initializer('/disk1/abtarget/checkpoints/antiberty/single/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_tot_rep_aug', model2)
+    model1 = model_initializer('/disk1/abtarget/checkpoints/protbert/single/protbert_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_tot_esm1b_2', model1)
+    model2 = model_initializer('/disk1/abtarget/checkpoints/antiberty/single/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_tot_esm1b_2', model2)
     list_model1 = [model1]
     list_model2 = [model2]
 
