@@ -4,7 +4,7 @@ import torch
 import numpy as np
 
 from src.protbert import Baseline
-from src.baseline_dataset import CovAbDabDataset
+from src.baseline_dataset import SAbDabDataset
 from src.training_eval import model_initializer, train_model, eval_model1_model2, final_score_eval
 import warnings
 warnings.filterwarnings('ignore')
@@ -128,7 +128,7 @@ if __name__ == "__main__":
   argparser.add_argument('-sin', '--one_encoder', type=bool, help='One encoder (ProtBERT or AntiBERTy)', default=False)
 
   args = argparser.parse_args()
-  dataset = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv')
+  dataset = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv')
       
   resultList = controlled_split(dataset, dataset.labels, subset = 0, bootstrap = 0, sample_size = 50)
   val_data = torch.utils.data.Subset(dataset, resultList['val'])

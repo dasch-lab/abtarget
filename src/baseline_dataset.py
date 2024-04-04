@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 from altro import fasta
 
 
-class CovAbDabDataset(Dataset):
+class SAbDabDataset(Dataset):
     def __init__(self, path, target=None, alignment=None):
 
         self._path = path

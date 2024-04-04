@@ -6,7 +6,7 @@ import argparse
 import torch
 
 from src.protbert import Baseline, MLP
-from src.baseline_dataset import CovAbDabDataset, SMOTEDataset, MyDataset
+from src.baseline_dataset import SAbDabDataset, SMOTEDataset, MyDataset
 from src.metrics import MCC
 from src.data_loading_split import stratified_split
 from src.training_eval import train_model, eval_model
@@ -103,11 +103,11 @@ if __name__ == "__main__":
       else:
         exit()
     elif args.hallucination:
-      dataset = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_hallucination.csv')
+      dataset = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_hallucination.csv')
     elif args.esm:
-      dataset = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_esm.csv')
+      dataset = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_esm.csv')
     else:
-      dataset = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv')
+      dataset = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv')
     
 
     if args.threads:

@@ -3,7 +3,7 @@ import argparse
 import torch
 
 from src.protbert import Baseline
-from src.baseline_dataset import CovAbDabDataset
+from src.baseline_dataset import SAbDabDataset
 from src.data_loading_split import load_data
 from src.training_eval import model_initializer, eval_model1_model2, final_score_eval
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
   args = argparser.parse_args()
   
   # Load Data
-  dataset = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
+  dataset = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
   
 
   if args.threads:

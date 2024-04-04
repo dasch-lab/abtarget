@@ -60,3 +60,8 @@ dataset/*/
 # Ignore cache
 cache/
 
+# Ignore files
+XAI_new.py
+XAI.py
+pred_ensemble.py
+

@@ -6,7 +6,7 @@ import argparse
 import torch
 
 from src.protbert import Baseline, MLP
-from src.baseline_dataset import CovAbDabDataset, SMOTEDataset, MyDataset
+from src.baseline_dataset import SAbDabDataset, SMOTEDataset, MyDataset
 from src.metrics import MCC
 from src.data_loading_split import load_data
 from src.training_eval import eval_model, model_initializer
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     else:
       exit()
   else:
-    dataset = CovAbDabDataset('/disk1/abtarget/dataset/gono/Gono_test_ammino.csv')
+    dataset = SAbDabDataset('/disk1/abtarget/dataset/gono/Gono_test_ammino.csv')
   
 
   if args.threads:

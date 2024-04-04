@@ -14,7 +14,7 @@ from torchmetrics.classification import BinaryF1Score
 from matplotlib import pyplot as plt
 
 from src.protbert import BaselineOne
-from src.baseline_dataset import CovAbDabDataset
+from src.baseline_dataset import SAbDabDataset
 from src.metrics import MCC
 from src.training_eval import final_score_eval, confusion_matrix
 
@@ -380,10 +380,10 @@ if __name__ == "__main__":
     random.seed(args.random)
   
   # Create the dataset object
-  #dataset =  CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train_norep.csv')
+  #dataset =  SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train_norep.csv')
 
-  dataset1 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv')
-  dataset2 = CovAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
+  dataset1 = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv')
+  dataset2 = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
   
 
   if args.threads:
