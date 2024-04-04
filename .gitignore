@@ -53,6 +53,7 @@ abodybuilder2/
 FvHallucinator/
 img/
 oas/
+XAI/
 
 # Ignore subfolders inside dataset folder
 dataset/*/
@@ -60,8 +61,4 @@ dataset/*/
 # Ignore cache
 cache/
 
-# Ignore files
-XAI_new.py
-XAI.py
-pred_ensemble.py
 
