@@ -5,7 +5,7 @@ Monoclonal antibodies are highly specific therapeutic options for treating vario
 # Description
 * train_bootstrap.py: training and evaluation of ProtBERT and AntiBERTy models using MLP with the opportunity to perform also the bootstrap analysis (for the single training set args.bootstrap to False)
 * train_OCSVM.py: training and evaluation of ProtBERT and AntiBERTy models using OCSVM
-* pred.py: ensemble of ProtBERT and AntiBERty for all the experiments except SMOTE augmentation
+* pred_combination.py: ensemble of ProtBERT and AntiBERty for all the experiments except SMOTE augmentation
 * pred_SMOTE.py: ensemble of ProtBERT and AntiBERty for SMOTE augmentation
 * src/baseline_dataset.py: class SAbDabDataset to access data from a CSV file
 * src/data_loading_split.py: contains the function to split the dataset (training, validation and test)

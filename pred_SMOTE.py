@@ -24,6 +24,12 @@ if __name__ == "__main__":
   argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='SGD')
   argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=3e-5)
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
+  argparser.add_argument('-smotea', '--smote_a', type=str, help='Dataset with SMOTE augmented sequences for antiberty', default= "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep_antiberty_embeddings.csv")
+  argparser.add_argument('-smotep', '--smote_p', type=str, help='Dataset with SMOTE augmented sequences for protbert', default= "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep_protbert_embeddings.csv")
+  argparser.add_argument('-modela', '--model_a', type=str, help='Wights of antiberty + MLP', default= "/disk1/abtarget/checkpoints/antiberty/single/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_SMOTE")
+  argparser.add_argument('-modelp', '--model_p', type=str, help='Wights of protbert + MLP', default= "/disk1/abtarget/checkpoints/protbert/single/protbert_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_SMOTE")
+
+
 
   # Parse arguments
   args = argparser.parse_args()
@@ -36,8 +42,8 @@ if __name__ == "__main__":
     random.seed(22)
   
   # Create the dataset object
-  dataset1 = SMOTEDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep_protbert_embeddings.csv')
-  dataset2 = SMOTEDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep_antiberty_embeddings.csv')
+  dataset1 = SMOTEDataset(args.smote_p)
+  dataset2 = SMOTEDataset(args.smote_a)
   
   
 
@@ -75,8 +81,8 @@ if __name__ == "__main__":
   
   model1 = MLP(args.batch_size, device, nn_classes=args.n_class, model_name='protbert')
   model2 = MLP(args.batch_size, device, nn_classes=args.n_class, model_name = 'antiberty')
-  model1 = model_initializer('/disk1/abtarget/checkpoints/protbert/single/protbert_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_SMOTE', model1)
-  model2 = model_initializer('/disk1/abtarget/checkpoints/antiberty/single/antiberty_50_16_Adam_Crossentropy_True_sabdab_old_split_norep_SMOTE', model2)
+  model1 = model_initializer(args.model_p, model1)
+  model2 = model_initializer(args.model_a, model2)
 
   # Train model
   org, pred = eval_model1_model2_smote(

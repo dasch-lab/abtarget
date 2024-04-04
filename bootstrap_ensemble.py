@@ -126,9 +126,10 @@ if __name__ == "__main__":
   argparser.add_argument('-ens', '--ensemble', type=bool, help='Ensable models', default=True)
   argparser.add_argument('-tr', '--pretrain', type=bool, help='Freeze encoder', default= True)
   argparser.add_argument('-sin', '--one_encoder', type=bool, help='One encoder (ProtBERT or AntiBERTy)', default=False)
+  argparser.add_argument('-data', '--dataset', type=str, help='Dataset', default= "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv")
 
   args = argparser.parse_args()
-  dataset = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv')
+  dataset = SAbDabDataset(args.dataset)
       
   resultList = controlled_split(dataset, dataset.labels, subset = 0, bootstrap = 0, sample_size = 50)
   val_data = torch.utils.data.Subset(dataset, resultList['val'])

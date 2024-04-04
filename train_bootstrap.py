@@ -48,6 +48,15 @@ if __name__ == "__main__":
   argparser.add_argument('-d', '--double', type=bool, help='Double dataset', default= False)
   argparser.add_argument('-b', '--bootstrap', type=bool, help='Bootstrap evaluation', default= True)
   argparser.add_argument('-nb', '--number_bootstrap', type=int, help='Number of bootstraps', default= 20)
+  argparser.add_argument('-data', '--dataset', type=str, help='Dataset', default= "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv")
+  argparser.add_argument('-de', '--data_esm', type=str, help='Dataset with ESM augmented sequences', default= "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_esm.csv")
+  argparser.add_argument('-dh', '--data_hallucination', type=str, help='Dataset with hallucinated sequences', default= "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_hallucination.csv")
+  argparser.add_argument('-smotea', '--smote_a', type=str, help='Dataset with SMOTE augmented sequences for antiberty', default= "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_antiberty_embeddings_SMOTE.csv")
+  argparser.add_argument('-smotep', '--smote_p', type=str, help='Dataset with SMOTE augmented sequences for protbert', default= "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_protbert_embeddings_SMOTE.csv")
+
+
+  
+
 
   # Evaluation metrics
   precision = []
@@ -97,17 +106,17 @@ if __name__ == "__main__":
     # Create the dataset object
     if args.smote:
       if args.model == 'antiberty':
-        dataset = SMOTEDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_antiberty_embeddings_SMOTE.csv')
+        dataset = SMOTEDataset(args.smote_a)
       elif args.model == 'protbert':
-        dataset = SMOTEDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_protbert_embeddings_SMOTE.csv')
+        dataset = SMOTEDataset(args.smote_p)
       else:
         exit()
     elif args.hallucination:
-      dataset = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_hallucination.csv')
+      dataset = SAbDabDataset(args.data_hallucination)
     elif args.esm:
-      dataset = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep_esm.csv')
+      dataset = SAbDabDataset(args.data_esm)
     else:
-      dataset = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_norep.csv')
+      dataset = SAbDabDataset(args.dataset)
     
 
     if args.threads:

@@ -362,6 +362,8 @@ if __name__ == "__main__":
   argparser.add_argument('-en', '--ensemble', type=bool, help='Ensemble model', default= False)
   argparser.add_argument('-tr', '--pretrain', type=bool, help='Freeze encoder', default= True)
   argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 7)
+  argparser.add_argument('-train', '--training', type=str, help='Training dataset', default = "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv")
+  argparser.add_argument('-test', '--test', type=str, help='Test dataset', default = "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv")
 
     
 
@@ -382,8 +384,8 @@ if __name__ == "__main__":
   # Create the dataset object
   #dataset =  SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train_norep.csv')
 
-  dataset1 = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv')
-  dataset2 = SAbDabDataset('/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv')
+  dataset1 = SAbDabDataset(args.training)
+  dataset2 = SAbDabDataset(args.test)
   
 
   if args.threads:

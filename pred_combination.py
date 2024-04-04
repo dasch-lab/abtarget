@@ -50,6 +50,7 @@ if __name__ == "__main__":
   argparser.add_argument('-d', '--double', type=bool, help='Double dataset', default= False)
   argparser.add_argument('-b', '--bootstrap', type=bool, help='Bootstrap evaluation', default= False)
   argparser.add_argument('-nb', '--number_bootstrap', type=int, help='Number of bootstraps', default= 20)
+  
 
   # Evaluation metrics
   precision = []
