@@ -13,4 +13,4 @@ Monoclonal antibodies are highly specific therapeutic options for treating vario
 * src/pdb.py: parsing of the pdb to optain the sequence
 * src/protbert.py: model definition
 * src/training_eval.py: function to perform training and evaluation
-* test_data: the data used in test are in sabdab_200423_test_norep.csv while for the SMOTE augmentation the model uses directly the embeddings (AntiBERTy: sabdab_200423_test_norep_antiberty_embeddings.csv and ProtBERT: sabdab_200423_test_norep_protbert_embeddings.csv)
+* test_data: the data used in test are in sabdab_200423_test_norep.csv while for the SMOTE augmentation the model uses directly the embeddings (AntiBERTy: sabdab_200423_test_norep_antiberty_embeddings.csv; ProtBERT: sabdab_200423_test_norep_protbert_embeddings.csv)
