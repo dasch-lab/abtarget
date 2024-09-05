@@ -17,7 +17,7 @@ from src.protbert import BaselineOne
 from src.baseline_dataset import SAbDabDataset
 from src.metrics import MCC
 from src.training_eval import final_score_eval, confusion_matrix
-from sklearn.linear_model import Lasso
+from sklearn.linear_model import Lasso, LogisticRegression, Ridge
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 
@@ -44,7 +44,7 @@ def embedding_phase(dataloaders, phase, model):
 
 
 
-def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, dataset3 : torch.utils.data.Dataset, labels1, labels2, labels3, train_size, tot):
+def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.utils.data.Dataset, dataset3 : torch.utils.data.Dataset, labels1, labels2, labels3, train_size, tot, args):
 
   '''
   Split the dataset proportionally according to the sample label
@@ -80,6 +80,10 @@ def stratified_split1(dataset1 : torch.utils.data.Dataset, dataset2 : torch.util
         trainList = random.sample(classData1[name], 2824)
       else:
         trainList = classData1[name]
+      
+      if name == 1:
+        if args.rf or args.knn:
+          trainList = classData1[name]*13
     else:
       if name == 0:
         trainList = random.sample(classData1[name], len(classData1[1]))
@@ -325,7 +329,7 @@ if __name__ == "__main__":
   argparser.add_argument('-i', '--input', help='input model folder', type=str, default = "/disk1/abtarget/dataset")
   argparser.add_argument('-ch', '--checkpoint', help='checkpoint folder', type=str, default = "/disk1/abtarget")
   argparser.add_argument('-t', '--threads',  help='number of cpu threads', type=int, default=None)
-  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'antiberty')
+  argparser.add_argument('-m', '--model', type=str, help='Which model to use: protbert, antiberty, antiberta', default = 'protbert')
   argparser.add_argument('-t1', '--epoch_number', help='training epochs', type=int, default=50)
   argparser.add_argument('-t2', '--batch_size', help='batch size', type=int, default=1)
   argparser.add_argument('-r', '--random', type=int, help='Random seed', default=None)
@@ -333,18 +337,17 @@ if __name__ == "__main__":
   argparser.add_argument('-o', '--optimizer', type=str, help='Optimizer: SGD or Adam', default='Adam')
   argparser.add_argument('-l', '--lr', type=float, help='Learning rate', default=3e-5)
   argparser.add_argument('-cr', '--criterion', type=str, help='Criterion: BCE or Crossentropy', default='Crossentropy')
-  argparser.add_argument('-en', '--ensemble', type=bool, help='Ensemble model', default= True)
+  argparser.add_argument('-en', '--ensemble', type=bool, help='Ensemble model', default= False)
   argparser.add_argument('-tr', '--pretrain', type=bool, help='Freeze encoder', default= True)
   argparser.add_argument('-sub', '--subset', type=int, help='Subset to train the model with', default = 7)
   argparser.add_argument('-train', '--training', type=str, help='Training dataset', default = "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_train1_norep.csv")
   argparser.add_argument('-val', '--val', type=str, help='Validation dataset', default = "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_val_norep.csv")
   argparser.add_argument('-test', '--test', type=str, help='Test dataset', default = "/disk1/abtarget/dataset/sabdab/split/sabdab_200423_test_norep.csv")
   argparser.add_argument('-lasso', '--lasso', type=bool, help='LASSO classification', default = False)
+  argparser.add_argument('-svm', '--svm', type=bool, help='SVM classification', default = False)
   argparser.add_argument('-rf', '--rf', type=bool, help='Random Forest classification', default = False)
-  argparser.add_argument('-knn', '--knn', type=bool, help='KNN classification', default = False)
-  argparser.add_argument('-ocsvm', '--ocsvm', type=bool, help='OCSVM classification', default = True)
-
-
+  argparser.add_argument('-knn', '--knn', type=bool, help='KNN classification', default = True)
+  argparser.add_argument('-ocsvm', '--ocsvm', type=bool, help='OCSVM classification', default = False)
     
 
   # Parse arguments
@@ -382,7 +385,7 @@ if __name__ == "__main__":
     subset = args.subset
     train_data, val_data, test_data = controlled_split(dataset1, dataset2, dataset3, dataset1.labels, dataset2.labels,  dataset3.labels, fraction=nn_train, subset = subset, proportion=0.5)
   else:
-    train_data, val_data, test_data = stratified_split1(dataset1, dataset2, dataset3, dataset1.labels, dataset2.labels,  dataset3.labels, train_size=10000, tot = True)
+    train_data, val_data, test_data = stratified_split1(dataset1, dataset2, dataset3, dataset1.labels, dataset2.labels,  dataset3.labels, train_size=10000, tot = True, args = args)
     
     
   # Train and Test Dataloaders - (Wrap data with appropriate data loaders)
@@ -415,27 +418,48 @@ if __name__ == "__main__":
   model.eval()
 
   labels, embeddings =  embedding_phase(dataloaders, "train", model)
+  weights =  {0:1, 1:2874/215}
 
   if args.lasso:
-    classifier = Lasso(alpha = 0.1).fit(embeddings,labels)
+    #classifier = Lasso(alpha = 0.1).fit(embeddings,labels)
+    #classifier = LogisticRegression(solver='liblinear', random_state=42).fit(embeddings,labels)
+    if args.ensemble:
+      classifier =  LogisticRegression(penalty='l1', solver='liblinear', C=10, random_state=42).fit(embeddings,labels)
+    else:
+      classifier =  LogisticRegression(penalty='l1', solver='liblinear', C=2.5, class_weight= weights, random_state=42).fit(embeddings,labels)
+    #print(classifier.coef_)
+    #print(classifier.intercept_)
   elif args.knn:
     k = 5
     classifier = KNeighborsClassifier(n_neighbors=k, weights='distance').fit(embeddings,labels)
   elif args.rf:
-    estimators = 100
-    classifier = RandomForestClassifier(n_estimators=estimators, criterion="entropy").fit(embeddings,labels)
+    estimators = 50
+    if args.ensemble:
+      classifier = RandomForestClassifier(n_estimators=estimators, criterion="entropy").fit(embeddings,labels)
+    else:
+      classifier = RandomForestClassifier(n_estimators=estimators, criterion="entropy", class_weight = weights).fit(embeddings,labels)
+  elif args.svm:
+    if args.ensemble:
+      classifier = SVC(kernel='poly', C=1.25, random_state=42).fit(embeddings,labels)
+    else:
+      classifier = SVC(kernel='poly', C=10, random_state=42, class_weight = weights).fit(embeddings,labels)
+    #classifier = SVC(kernel='rbf', gamma='scale', random_state=42).fit(embeddings,labels)
   else:
     if args.ensemble:
       nu = 0.5
     else:
       nu = 0.07
-    classifier = OneClassSVM(nu = nu, kernel = 'rbf', gamma = 'auto').fit(embeddings)
+    classifier = OneClassSVM(nu = nu, kernel = 'poly', gamma = 'auto', degree = 7).fit(embeddings)
 
   
   print('Training')
   prediction = classifier.predict(embeddings)
   if args.lasso: 
+    #print('Pre')
+    #print(prediction)
     prediction = prediction.round()
+    #print('Post')
+    #print(prediction)
   if args.ocsvm:
     prediction = np.where(prediction == -1, 1, np.where(prediction == 1, 0, prediction))
   
